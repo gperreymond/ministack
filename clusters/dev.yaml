@@ -14,9 +14,7 @@ services:
     enabled: false
     replicas: 1
   vault:
-    version: '1.18.3'
     enabled: false
-    replicas: 1
 
 plugins:
   traefik:

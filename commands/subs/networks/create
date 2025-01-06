@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# Define the networks to create
+set -e
+
+# define the networks to create
 declare -A networks
 networks=(
   ["ministack-global"]="10.1.0.0/24 ministack"
@@ -9,13 +11,13 @@ networks=(
   ["ministack-vault"]="10.4.0.0/24 vault"
 )
 
-# Function to check if a network exists
+# function to check if a network exists
 network_exists() {
   local network_name=$1
   docker network ls --filter name=^${network_name}$ --format "{{.Name}}" | grep -wq "${network_name}"
 }
 
-# Create networks if they don't exist
+# create networks if they don't exist
 for network in "${!networks[@]}"; do
   IFS=' ' read -r subnet iface_prefix <<< "${networks[$network]}"
   

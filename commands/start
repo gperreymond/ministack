@@ -39,6 +39,8 @@ echo ""
 
 # COMPOSE
 docker compose --file build/cluster.yaml up --detach
+echo ""
 
 # HASHISTACK
 ./commands/subs/services/start
+echo ""
