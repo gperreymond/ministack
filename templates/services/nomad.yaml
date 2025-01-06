@@ -1,0 +1,42 @@
+{{- if (datasource "config").services.nomad.enabled -}}
+services:
+  {{- range seq 1 (datasource "config").services.nomad.replicas }}
+  nomad-server-{{ . }}:
+    image: '{{ (datasource "config").image.repository }}:{{ (datasource "config").image.tag }}'
+    container_name: 'nomad-server-{{ . }}'
+    hostname: 'nomad-server-{{ . }}'
+    privileged: 'true'
+    labels:
+      - 'ministack.enable=true'
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=ministack-nomad'
+      - 'traefik.http.routers.nomad.rule=Host(`nomad.docker.localhost`)'
+      - 'traefik.http.routers.nomad.entrypoints=web'
+      - 'traefik.http.services.nomad.loadbalancer.server.port=4646'
+    volumes:
+      - '../configurations/nomad/config.hcl:/nomad/config/config.hcl:ro'
+      - '../configurations/nomad/server.hcl:/etc/nomad.d/config/server.hcl'
+      {{- if (datasource "config").services.consul.enabled }}
+      - '../configurations/consul/config.hcl:/consul/config/config.hcl:ro'
+      - '../configurations/consul/client.hcl:/etc/consul.d/config/client.hcl'
+      {{- end }}
+      - 'nomad_server_{{ . }}_data:/nomad/data'
+      {{- if (datasource "config").services.consul.enabled }}
+      - 'nomad_server_{{ . }}_consul_client_data:/consul/data'
+      {{- end }}
+    networks:
+      {{- if (datasource "config").services.consul.enabled }}
+      ministack-consul: {}
+      {{- end }}
+      ministack-nomad:
+        ipv4_address: '10.2.0.1{{ . }}'
+  {{- end }}
+
+volumes:
+  {{- range seq 1 (datasource "config").services.nomad.replicas }}
+  nomad_server_{{ . }}_data: {}
+  {{- if (datasource "config").services.consul.enabled }}
+  nomad_server_{{ . }}_consul_client_data: {}
+  {{- end }}
+  {{- end }}
+{{- end }}

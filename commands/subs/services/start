@@ -8,6 +8,7 @@ containers=$(docker ps --filter "label=ministack.enable=true" --format "{{.Names
 # check if there are any containers with the label
 if [[ -z "$containers" ]]; then
   echo "[WARN] no running containers with label 'ministack.enable=true' found."
+  echo ""
   exit 0
 fi
 

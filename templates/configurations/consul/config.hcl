@@ -4,8 +4,6 @@ data_dir = "/consul/data"
 log_level = "INFO"
 log_json = true
 
-encrypt = "{{ .Env.CONSUL_ENCRYPT_KEY }}"
-
 retry_join = [
   {{- range seq 1 (datasource "config").services.consul.replicas }}
   "consul-server-{{ . }}",

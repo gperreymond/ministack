@@ -4,7 +4,7 @@ set -e
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
-        -c|--config) config="$2"; shift ;;
+        --config) config="$2"; shift ;;
         *) echo "[ERROR] params not authorized" && exit 1;;
     esac
     shift
@@ -16,29 +16,22 @@ echo "[INFO] config file.................. $config"
 echo "============================================================="
 echo ""
 
-datasource=$config
-
-if [[ ! -f "$datasource" ]]; then
-  echo "[ERROR] config file '$file' not found."
+if [[ ! -f "$config" ]]; then
+  echo "[ERROR] config file '$config' not found."
   echo ""
   exit 1
 fi
 
-if [[ ! -f "build" ]]; then
-    rm -rf build
-fi
-export CONSUL_ENCRYPT_KEY=$(gomplate -i '{{ random.String 32 `[[:xdigit:]]` | base64.Encode }}')
-gomplate \
-  --input-dir=templates \
-  --output-dir=build \
-  --datasource config=$datasource
+# TEMPLATES
+./commands/subs/templates/generate --datasource $config
+echo ""
 
 # NETWORKS
 ./commands/subs/networks/create
 echo ""
 
 # COMPOSE
-docker compose --file build/cluster.yaml up --detach
+docker compose --file build/cluster.yaml up --detach --force-recreate
 echo ""
 
 # HASHISTACK
