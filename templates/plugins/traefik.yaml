@@ -1,0 +1,44 @@
+{{- if (datasource "config").plugins.traefik.enabled -}}
+services:
+  traefik:
+    image: 'traefik:v{{ (datasource "config").plugins.traefik.version }}'
+    container_name: 'traefik'
+    command:
+      - '--log.level=INFO'
+      - '--api.insecure=true'
+      - '--metrics.prometheus.entryPoint=metrics'
+      - '--metrics.prometheus=true'
+      - '--metrics.prometheus.addEntryPointsLabels=true'
+      - '--metrics.prometheus.addServicesLabels=true'
+      - '--metrics.prometheus.addrouterslabels=true'
+      - '--providers.file.watch=true'
+      - '--providers.file.directory=/traefik/configs/dynamic'
+      - '--providers.docker=true'
+      - '--providers.docker.exposedbydefault=false'
+      - '--providers.consulcatalog.endpoint.address=consul-server.internal:8500'
+      - '--providers.consulcatalog.endpoint.scheme=http'
+      - '--providers.consulcatalog.endpoint.datacenter=europe-paris'
+      - '--providers.consulcatalog.endpoint.tls.insecureskipverify=true'
+      - '--providers.consulcatalog.exposedByDefault=false'
+      - '--providers.consulcatalog.connectAware=true'
+      - '--providers.consulcatalog.connectByDefault=true'
+      - '--providers.consulcatalog.refreshInterval=30s'
+      - '--entryPoints.web.address=:80'
+      - '--entryPoints.metrics.address=:8082'
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.traefik-dashboard.rule=Host(`traefik.docker.localhost`)'
+      - 'traefik.http.routers.traefik-dashboard.entrypoints=web'
+      - 'traefik.http.routers.traefik-dashboard.service=api@internal'
+    extra_hosts:
+      - 'consul-server.internal:10.3.0.11'
+    ports:
+      - '80:80/tcp'
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
+      - '../configurations/traefik/dynamic:/traefik/configs/dynamic:ro'
+    networks:
+      ministack-global: {}
+      ministack-consul: {}
+      ministack-nomad: {}
+{{- end }}

@@ -1,0 +1,25 @@
+name: '{{ (datasource "config").name }}'
+
+include:
+  {{- if (datasource "config").plugins.traefik.enabled }}
+  - 'plugins/traefik.yaml'
+  {{- end }}
+  {{- if (datasource "config").services.consul.enabled }}
+  - 'services/consul.yaml'
+  {{- end }}
+  {{- if (datasource "config").services.nomad.enabled }}
+  - 'services/nomad.yaml'
+  {{- end }}
+  {{- if (datasource "config").services.vault.enabled }}
+  - 'services/vault.yaml'
+  {{- end }}
+
+networks:
+  ministack-global:
+    external: true
+  ministack-nomad:
+    external: true
+  ministack-consul:
+    external: true
+  ministack-vault:
+    external: true

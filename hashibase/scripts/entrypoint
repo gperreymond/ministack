@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -e
+
+# create /sys/fs/cgroup if it doesn't already exist (rare case)
+if [ ! -d /sys/fs/cgroup ]; then
+    mkdir -p /sys/fs/cgroup
+fi
+
+# mount cgroups if they are not already mounted
+if ! mountpoint -q /sys/fs/cgroup; then
+    # mount the root cgroup as tmpfs
+    mount -t tmpfs cgroup_root /sys/fs/cgroup
+    
+    # loop through the subsystems and mount each one
+    for subsystem in cpu cpuacct blkio memory devices freezer net_cls perf_event net_prio hugetlb pids; do
+        mkdir -p /sys/fs/cgroup/$subsystem
+        mount -t cgroup -o $subsystem cgroup /sys/fs/cgroup/$subsystem
+    done
+fi
+
+echo ""
+echo "[INFO] entrypoint completed: $(uname -a)"
+echo ""
+
+# we want the command (expected to be systemd) to be PID1, so exec to it
+exec "$@"

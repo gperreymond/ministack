@@ -1,0 +1,24 @@
+name: hashistack-dev
+datacenter: 'europe-paris'
+image:
+  repository: 'gperreymond/hashibase'
+  tag: '1.0.4'
+
+services:
+  consul:
+    version: '1.20.1'
+    enabled: true
+    replicas: 1
+  nomad:
+    version: '1.9.4'
+    enabled: false
+    replicas: 1
+  vault:
+    version: '1.18.3'
+    enabled: false
+    replicas: 1
+
+plugins:
+  traefik:
+    enabled: true
+    version: '3.2.3'

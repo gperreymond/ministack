@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Define the networks to create
+declare -A networks
+networks=(
+  ["ministack-global"]="10.1.0.0/24 ministack"
+  ["ministack-nomad"]="10.2.0.0/24 nomad"
+  ["ministack-consul"]="10.3.0.0/24 consul"
+  ["ministack-vault"]="10.4.0.0/24 vault"
+)
+
+# Function to check if a network exists
+network_exists() {
+  local network_name=$1
+  docker network ls --filter name=^${network_name}$ --format "{{.Name}}" | grep -wq "${network_name}"
+}
+
+# Create networks if they don't exist
+for network in "${!networks[@]}"; do
+  IFS=' ' read -r subnet iface_prefix <<< "${networks[$network]}"
+  
+  if network_exists "$network"; then
+    echo "[WARN] network '$network' already exists. Skipping creation."
+  else
+    echo "[INFO] creating network '$network'..."
+    docker network create \
+      --driver=bridge \
+      --subnet="$subnet" \
+      --opt "com.docker.network.container_iface_prefix=$iface_prefix" \
+      "$network"
+      
+    if [[ $? -eq 0 ]]; then
+      echo "[INFO] network '$network' created successfully."
+    else
+      echo "[ERROR] failed to create network '$network'."
+      exit 1
+    fi
+  fi
+done

@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -e
+
+echo ""
+echo "============================================================="
+echo "[INFO] NOMAD_VERSION.................. $NOMAD_VERSION"
+echo "[INFO] CONSUL_VERSION................. $CONSUL_VERSION"
+echo "[INFO] VAULT_VERSION.................. $VAULT_VERSION"
+echo "============================================================="
+echo ""
+
+# function to check if a directory contains configuration files
+start_if_config_exists() {
+  local service=$1
+  local config_dir=$2
+  local version=$3
+
+  if [ -d "$config_dir" ] && [ "$(ls -A "$config_dir")" ]; then
+    echo "[INFO] Configuration files found for $service. Starting $service..."
+    hashi-up $service install --local --version $version --skip-start --config-file $config_dir/config.hcl
+    sed -i 's/^User=consul/User=root/' /etc/systemd/system/$service.service
+    sed -i 's/^Group=consul/Group=root/' /etc/systemd/system/$service.service
+    sed -i 's/^User=nomad/User=root/' /etc/systemd/system/$service.service
+    sed -i 's/^Group=nomad/Group=root/' /etc/systemd/system/$service.service
+    sed -i 's/^User=vault/User=root/' /etc/systemd/system/$service.service
+    sed -i 's/^Group=vault/Group=root/' /etc/systemd/system/$service.service
+    systemctl enable $service.service
+    systemctl start $service
+  else
+    echo "[WARN] No configuration files found for $service. Skipping $service..."
+  fi
+}
+# start Vault if config files exist
+start_if_config_exists "vault" "/vault/config" $VAULT_VERSION
+# start Consul if config files exist
+start_if_config_exists "consul" "/consul/config" $CONSUL_VERSION
+# start Nomad if config files exist
+start_if_config_exists "nomad" "/nomad/config" $NOMAD_VERSION

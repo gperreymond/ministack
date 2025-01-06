@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.13.7/.schema/devbox.schema.json",
+  "packages": {
+    "gomplate": "4.2.0"
+  },
+  "shell": {
+    "init_hook": [
+      "echo 'Welcome to devbox!' > /dev/null"
+    ],
+    "scripts": {
+      "start:dev": [
+        "./commands/start --config clusters/dev.yaml"
+      ],
+      "stop:dev": [
+        "./commands/stop"
+      ]
+    }
+  }
+}

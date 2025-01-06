@@ -1,0 +1,29 @@
+{{- if (datasource "config").services.consul.enabled -}}
+services:
+  {{- range seq 1 (datasource "config").services.consul.replicas }}
+  consul-server-{{ . }}:
+    image: '{{ (datasource "config").image.repository }}:{{ (datasource "config").image.tag }}'
+    container_name: 'consul-server-{{ . }}'
+    hostname: 'consul-server-{{ . }}'
+    privileged: 'true'
+    labels:
+      - 'ministack.enable=true'
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=ministack-consul'
+      - 'traefik.http.routers.consul.rule=Host(`consul.docker.localhost`)'
+      - 'traefik.http.routers.consul.entrypoints=web'
+      - 'traefik.http.services.consul.loadbalancer.server.port=8500'
+    volumes:
+      - '../configurations/consul/config.hcl:/consul/config/config.hcl:ro'
+      - '../configurations/consul/server.hcl:/etc/consul.d/config/server.hcl'
+      - 'consul_server_{{ . }}_data:/consul/data'
+    networks:
+      ministack-consul:
+        ipv4_address: '10.3.0.1{{ . }}'
+  {{- end }}
+
+volumes:
+  {{- range seq 1 (datasource "config").services.consul.replicas }}
+  consul_server_{{ . }}_data: {}
+  {{- end }}
+{{- end }}
