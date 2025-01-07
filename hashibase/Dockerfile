@@ -2,7 +2,7 @@ ARG UBUNTU_JAMMY_IMAGE="ubuntu:jammy-20240911.1"
 
 FROM ${UBUNTU_JAMMY_IMAGE} AS hashibase
 
-ARG CNI_PLUGINS_VERSION="1.6.1"
+ARG CNI_PLUGINS_VERSION="1.6.2"
 
 # install scripts
 COPY scripts/start-ministack /usr/local/bin/start-ministack
