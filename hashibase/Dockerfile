@@ -81,8 +81,8 @@ RUN sh -c "echo 'deb https://download.docker.com/linux/ubuntu jammy stable' > /e
 # install containernetworking-plugins
 RUN curl -LO "https://github.com/containernetworking/plugins/releases/download/v${CNI_PLUGINS_VERSION}/cni-plugins-linux-amd64-v${CNI_PLUGINS_VERSION}.tgz" && \
     mkdir -p /opt/cni/bin && \
-    tar -xf "cni-plugins-linux-$ARCH-v${CNI_PLUGINS_VERSION}.tgz" -C /opt/cni/bin && \
-    rm "cni-plugins-linux-$ARCH-v${CNI_PLUGINS_VERSION}.tgz"
+    tar -xf "cni-plugins-linux-amd64-v${CNI_PLUGINS_VERSION}.tgz" -C /opt/cni/bin && \
+    rm "cni-plugins-linux-amd64-v${CNI_PLUGINS_VERSION}.tgz"
 
 # install hashiup
 RUN curl -sLS https://get.hashi-up.dev | sh
