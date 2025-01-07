@@ -10,7 +10,23 @@
 
 ## Examples
 
-Warning: Docker networks will be created for all examples, stop a cluster before starting another one.
+Warnings:
+* docker networks will be created for all examples.
+* stop a cluster before starting another one.
+
+### Cluster mode old versions
+
+__Configuration__
+* consul is disable
+* nomad with replicas 1, version 1.8.2
+* vault is disable
+
+```sh
+# start cluster
+$ ./bin/ministack -config clusters/old.yaml -command start
+# stop cluster
+$ ./bin/ministack -config clusters/old.yaml -command stop
+```
 
 ### Cluster mode dev
 
@@ -21,9 +37,9 @@ __Configuration__
 
 ```sh
 # start cluster
-$ devbox run start:dev
+$ ./bin/ministack -config clusters/dev.yaml -command start
 # stop cluster
-$ devbox run stop:dev
+$ ./bin/ministack -config clusters/dev.yaml -command stop
 ```
 
 ### Cluster mode all
@@ -35,7 +51,7 @@ __Configuration__
 
 ```sh
 # start cluster
-$ devbox run start:all
+$ ./bin/ministack -config clusters/all.yaml -command start
 # stop cluster
-$ devbox run stop:all
+$ ./bin/ministack -config clusters/all.yaml -command stop
 ```

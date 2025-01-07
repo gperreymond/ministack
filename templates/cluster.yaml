@@ -9,6 +9,9 @@ include:
   {{- end }}
   {{- if (datasource "config").services.nomad.enabled }}
   - 'services/nomad.yaml'
+  {{ if (datasource "config").services.nomad.clients -}}
+  - 'services/nomad-clients.yaml'
+  {{- end }}
   {{- end }}
   {{- if (datasource "config").services.vault.enabled }}
   - 'services/vault.yaml'

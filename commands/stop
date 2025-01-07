@@ -1,6 +1,0 @@
-#!/bin/bash
-
-set -e
-
-docker compose --file build/cluster.yaml down
-

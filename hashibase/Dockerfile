@@ -4,10 +4,11 @@ FROM ${UBUNTU_JAMMY_IMAGE} AS hashibase
 
 ARG CNI_PLUGINS_VERSION="1.6.2"
 
-# install scripts
+# copy files
 COPY scripts/start-ministack /usr/local/bin/start-ministack
 COPY scripts/entrypoint /usr/local/bin/entrypoint
 COPY scripts/clean-install /usr/local/bin/clean-install
+COPY files/bridge.conf /etc/sysctl.d/bridge.conf
 
 # Install dependencies, first from apt, then from release tarballs.
 # NOTE: we use one RUN to minimize layers.
@@ -29,11 +30,11 @@ COPY scripts/clean-install /usr/local/bin/clean-install
 # This is plenty after we've done initial setup for a node, but before we are
 # likely to try to export logs etc.
 RUN echo "Ensuring scripts are executable ..." \
-    && chmod +x \
-      /usr/local/bin/clean-install \
-      /usr/local/bin/entrypoint \
-      /usr/local/bin/start-ministack \
- && echo "Installing Packages ..." \
+  && chmod +x \
+    /usr/local/bin/clean-install \
+    /usr/local/bin/entrypoint \
+    /usr/local/bin/start-ministack \
+  && echo "Installing Packages ..." \
     && DEBIAN_FRONTEND=noninteractive clean-install \
       systemd \
       conntrack iptables iproute2 ethtool socat util-linux mount ebtables udev kmod \
@@ -50,12 +51,16 @@ RUN echo "Ensuring scripts are executable ..." \
     && rm -f /lib/systemd/system/basic.target.wants/* \
     && echo "ReadKMsg=no" >> /etc/systemd/journald.conf \
     && ln -s "$(which systemd)" /sbin/init \
- && echo "Adjusting systemd-tmpfiles timer" \
+  && echo "Adjusting systemd-tmpfiles timer" \
     && sed -i /usr/lib/systemd/system/systemd-tmpfiles-clean.timer -e 's#OnBootSec=.*#OnBootSec=1min#' \
- && echo "Disabling udev" \
+  && echo "Disabling udev" \
     && systemctl disable udev.service \
- && echo "Modifying /etc/nsswitch.conf to prefer hosts" \
-    && sed -i /etc/nsswitch.conf -re 's#^(hosts:\s*).*#\1dns files#'
+  && echo "Modifying /etc/nsswitch.conf to prefer hosts" \
+    && sed -i /etc/nsswitch.conf -re 's#^(hosts:\s*).*#\1dns files#' \
+  && echo "Update bridge" \
+    && echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-arptables \
+    && echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-ip6tables \
+    && echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables
 
 # delete this file due to https://github.com/kubernetes/minikube/issues/17700
 RUN rm -f /usr/lib/binfmt.d/python3.10.conf

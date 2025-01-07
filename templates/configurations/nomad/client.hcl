@@ -14,6 +14,7 @@ plugin "docker" {
     volumes {
       enabled = true
     }
+    extra_labels = ["job_name", "task_group_name", "task_name", "namespace", "node_name"]
   }
 }
 {{- end }}

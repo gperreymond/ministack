@@ -1,0 +1,43 @@
+{{- if (datasource "config").services.nomad.enabled -}}
+{{- if (datasource "config").services.nomad.clients -}}
+services:
+  {{- range (datasource "config").services.nomad.clients }}
+  {{ .name }}:
+    image: '{{ (datasource "config").image.repository }}:{{ (datasource "config").image.tag }}'
+    container_name: '{{ .name }}'
+    hostname: '{{ .name }}'
+    privileged: 'true'
+    environment:
+      NOMAD_VERSION: '{{ (datasource "config").services.nomad.version }}'
+      {{- if (datasource "config").services.consul.enabled }}
+      CONSUL_VERSION: '{{ (datasource "config").services.consul.version }}'
+      {{- end }}
+    labels:
+      - 'ministack.enable=true'
+    volumes:
+      - '../configurations/nomad/config.hcl:/nomad/config/config.hcl:ro'
+      - '../configurations/nomad/client.hcl:/etc/nomad.d/config/client.hcl'
+      {{- if (datasource "config").services.consul.enabled }}
+      - '../configurations/consul/config.hcl:/consul/config/config.hcl:ro'
+      - '../configurations/consul/client.hcl:/etc/consul.d/config/client.hcl'
+      {{- end }}
+      - 'nomad_client_{{ .name }}_data:/nomad/data'
+      {{- if (datasource "config").services.consul.enabled }}
+      - 'nomad_client_{{ .name }}_consul_client_data:/consul/data'
+      {{- end }}
+    networks:
+      {{- if (datasource "config").services.consul.enabled }}
+      ministack-consul: {}
+      {{- end }}
+      ministack-nomad:
+  {{- end }}
+
+volumes:
+  {{- range (datasource "config").services.nomad.clients }}
+  nomad_client_{{ .name }}_data: {}
+  {{- if (datasource "config").services.consul.enabled }}
+  nomad_client_{{ .name }}_consul_client_data: {}
+  {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
