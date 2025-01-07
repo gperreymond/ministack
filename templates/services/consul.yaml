@@ -6,6 +6,8 @@ services:
     container_name: 'consul-server-{{ . }}'
     hostname: 'consul-server-{{ . }}'
     privileged: 'true'
+    environment:
+      CONSUL_VERSION: '{{ (datasource "config").services.consul.version }}'
     labels:
       - 'ministack.enable=true'
       - 'traefik.enable=true'

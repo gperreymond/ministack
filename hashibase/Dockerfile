@@ -79,8 +79,7 @@ RUN sh -c "echo 'deb https://download.docker.com/linux/ubuntu jammy stable' > /e
     systemctl enable docker.service
 
 # install containernetworking-plugins
-RUN export ARCH=amd64 && \
-    curl -LO "https://github.com/containernetworking/plugins/releases/download/v${CNI_PLUGINS_VERSION}/cni-plugins-linux-$ARCH-v${CNI_PLUGINS_VERSION}.tgz" && \
+RUN curl -LO "https://github.com/containernetworking/plugins/releases/download/v${CNI_PLUGINS_VERSION}/cni-plugins-linux-amd64-v${CNI_PLUGINS_VERSION}.tgz" && \
     mkdir -p /opt/cni/bin && \
     tar -xf "cni-plugins-linux-$ARCH-v${CNI_PLUGINS_VERSION}.tgz" -C /opt/cni/bin && \
     rm "cni-plugins-linux-$ARCH-v${CNI_PLUGINS_VERSION}.tgz"

@@ -6,6 +6,11 @@ services:
     container_name: 'nomad-server-{{ . }}'
     hostname: 'nomad-server-{{ . }}'
     privileged: 'true'
+    environment:
+      NOMAD_VERSION: '{{ (datasource "config").services.nomad.version }}'
+      {{- if (datasource "config").services.consul.enabled }}
+      CONSUL_VERSION: '{{ (datasource "config").services.consul.version }}'
+      {{- end }}
     labels:
       - 'ministack.enable=true'
       - 'traefik.enable=true'

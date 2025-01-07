@@ -16,7 +16,7 @@ services:
     clients:
       - name: worker-pikachu
         meta:
-          gperreymond/node: worker
+          hashistack/node: worker
   vault:
     enabled: false
 
