@@ -58,9 +58,9 @@ RUN echo "Ensuring scripts are executable ..." \
   && echo "Modifying /etc/nsswitch.conf to prefer hosts" \
     && sed -i /etc/nsswitch.conf -re 's#^(hosts:\s*).*#\1dns files#' \
   && echo "Update bridge" \
-    && echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-arptables \
-    && echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-ip6tables \
-    && echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables
+    && echo 1 | tee /proc/sys/net/bridge/bridge-nf-call-arptables \
+    && echo 1 | tee /proc/sys/net/bridge/bridge-nf-call-ip6tables \
+    && echo 1 | tee /proc/sys/net/bridge/bridge-nf-call-iptables
 
 # delete this file due to https://github.com/kubernetes/minikube/issues/17700
 RUN rm -f /usr/lib/binfmt.d/python3.10.conf
