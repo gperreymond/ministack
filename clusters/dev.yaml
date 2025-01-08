@@ -15,10 +15,11 @@ services:
     replicas: 1
     clients:
       - name: worker-pikachu
+      - name: worker-ronflex
   vault:
     enabled: false
 
 plugins:
   traefik:
     enabled: true
-    version: '3.2.3'
+    version: '3.3.1'

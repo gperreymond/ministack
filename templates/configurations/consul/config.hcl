@@ -4,6 +4,11 @@ data_dir = "/consul/data"
 log_level = "INFO"
 log_json = true
 
+ports {
+  grpc = 8502
+  dns = 8600
+}
+
 retry_join = [
   {{- range seq 1 (datasource "config").services.consul.replicas }}
   "consul-server-{{ . }}",

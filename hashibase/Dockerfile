@@ -2,6 +2,7 @@ ARG UBUNTU_JAMMY_IMAGE="ubuntu:jammy-20240911.1"
 
 FROM ${UBUNTU_JAMMY_IMAGE} AS hashibase
 
+ARG CONSUL_CNI_PLUGINS_VERSION="1.6.1"
 ARG CNI_PLUGINS_VERSION="1.6.2"
 
 # copy files
@@ -84,6 +85,12 @@ RUN curl -LO "https://github.com/containernetworking/plugins/releases/download/v
     mkdir -p /opt/cni/bin && \
     tar -xf "cni-plugins-linux-amd64-v${CNI_PLUGINS_VERSION}.tgz" -C /opt/cni/bin && \
     rm "cni-plugins-linux-amd64-v${CNI_PLUGINS_VERSION}.tgz"
+
+# install consul-cni, for transparent proxy
+RUN curl -LO https://releases.hashicorp.com/consul-cni/${CONSUL_CNI_PLUGINS_VERSION}/consul-cni_${CONSUL_CNI_PLUGINS_VERSION}_linux_amd64.zip && \
+    unzip "consul-cni_${CONSUL_CNI_PLUGINS_VERSION}_linux_amd64.zip" && \
+    mv consul-cni /opt/cni/bin/ && \
+    rm "consul-cni_${CONSUL_CNI_PLUGINS_VERSION}_linux_amd64.zip"
 
 # install hashiup
 RUN curl -sLS https://get.hashi-up.dev | sh

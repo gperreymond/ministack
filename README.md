@@ -55,3 +55,7 @@ $ ./bin/ministack -config clusters/all.yaml -command start
 # stop cluster
 $ ./bin/ministack -config clusters/all.yaml -command stop
 ```
+
+## Some useful articles
+
+* https://romanzipp.com/blog/get-started-with-hashi-nomad-consul
