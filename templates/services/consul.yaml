@@ -20,8 +20,8 @@ services:
       - '../configurations/consul/server.hcl:/etc/consul.d/config/server.hcl'
       - 'consul_server_{{ . }}_data:/consul/data'
     networks:
-      ministack-consul:
-        ipv4_address: '10.3.0.1{{ . }}'
+      ministack-global:
+        ipv4_address: '10.1.0.1{{ . }}'
   {{- end }}
 
 volumes:

@@ -1,5 +1,16 @@
 # MINISTACK
 
+## Prepare your local environment
+
+```sh
+$ asdf plugin add gomplate
+$ asdf plugin add task
+$ asdf plugin add nomad
+$ asdf plugin add consul
+$ asdf plugin add vault
+$ asdf install
+```
+
 ## Concepts
 
 ...

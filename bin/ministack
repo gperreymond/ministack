@@ -71,4 +71,4 @@ log "INFO" "Command: $command"
 log "INFO" "Config file: $config"
 echo "============================================================="
 
-devbox run ministack:$command $config
+task ministack-$command -- "$config"

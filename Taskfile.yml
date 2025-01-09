@@ -11,9 +11,6 @@ tasks:
         declare -A networks
         networks=(
           ["ministack-global"]="10.1.0.0/24 ministack"
-          ["ministack-nomad"]="10.2.0.0/24 nomad"
-          ["ministack-consul"]="10.3.0.0/24 consul"
-          ["ministack-vault"]="10.4.0.0/24 vault"
         )
         network_exists() {
           local network_name=$1

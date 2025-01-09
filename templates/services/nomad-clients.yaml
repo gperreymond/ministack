@@ -26,10 +26,7 @@ services:
       - 'nomad_client_{{ .name }}_consul_client_data:/consul/data'
       {{- end }}
     networks:
-      {{- if (datasource "config").services.consul.enabled }}
-      ministack-consul: {}
-      {{- end }}
-      ministack-nomad:
+      ministack-global: {}
   {{- end }}
 
 volumes:

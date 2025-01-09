@@ -20,9 +20,9 @@ include:
 networks:
   ministack-global:
     external: true
-  ministack-nomad:
-    external: true
-  ministack-consul:
-    external: true
-  ministack-vault:
-    external: true
+  # ministack-nomad:
+  #   external: true
+  # ministack-consul:
+  #   external: true
+  # ministack-vault:
+  #   external: true
