@@ -5,8 +5,8 @@ server {
 
 {{- if (datasource "config").services.consul.enabled }}
 consul {
-  address = "{{ `{{ GetInterfaceIP \"ministack0\" }}` }}:8500"
-  grpc_address = "{{ `{{ GetInterfaceIP \"ministack0\" }}` }}:8502"
+  address = "consul-server-1:8500"
+  grpc_address = "consul-server-1:8502"
 }
 {{- else }}
 server_join {

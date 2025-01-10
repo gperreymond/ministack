@@ -2,10 +2,6 @@
 server = true
 bootstrap_expect = {{ (datasource "config").services.consul.replicas }}
 
-connect {
-  enabled = true
-}
-
 ui_config {
   enabled = true
 }

@@ -2,3 +2,9 @@
 devbox.lock
 
 build
+certs
+
+
+# Added by cargo
+
+/target

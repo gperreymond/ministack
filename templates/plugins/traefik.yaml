@@ -15,14 +15,22 @@ services:
       - '--providers.file.directory=/traefik/configs/dynamic'
       - '--providers.docker=true'
       - '--providers.docker.exposedbydefault=false'
+      {{- if (datasource "config").services.nomad.enabled }}
+      - '--providers.nomad=true'
+      - '--providers.nomad.endpoint.address=http://nomad-server-1:4646'
+      - '--providers.nomad.exposedByDefault=false'
+      {{- end }}
+      {{- if (datasource "config").services.consul.enabled }}
+      - '--providers.consulcatalog=true'
       - '--providers.consulcatalog.endpoint.address=consul-server-1:8500'
       - '--providers.consulcatalog.endpoint.scheme=http'
-      - '--providers.consulcatalog.endpoint.datacenter=europe-paris'
-      - '--providers.consulcatalog.endpoint.tls.insecureskipverify=true'
+      - '--providers.consulcatalog.endpoint.datacenter={{ (datasource "config").datacenter }}'
+      - '--providers.consulcatalog.servicename=traefik-ingress'
       - '--providers.consulcatalog.exposedByDefault=false'
-      - '--providers.consulcatalog.connectAware=false'
-      - '--providers.consulcatalog.connectByDefault=false'
+      - '--providers.consulcatalog.connectAware=true'
+      - '--providers.consulcatalog.connectByDefault=true'
       - '--providers.consulcatalog.refreshInterval=30s'
+      {{- end }}
       - '--entryPoints.web.address=:80'
       - '--entryPoints.metrics.address=:8082'
     labels:
@@ -35,6 +43,18 @@ services:
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock:ro'
       - '../configurations/traefik/dynamic:/traefik/configs/dynamic:ro'
+      - '../../certs/{{ (datasource "config").datacenter }}:/certs:ro'
     networks:
       ministack-global: {}
+    depends_on:
+      {{- if (datasource "config").services.nomad.enabled }}
+      {{- range seq 1 (datasource "config").services.nomad.replicas }}
+      - 'nomad-server-{{.}}'
+      {{- end }}
+      {{- end }}
+      {{- if (datasource "config").services.consul.enabled }}
+      {{- range seq 1 (datasource "config").services.consul.replicas }}
+      - 'consul-server-{{.}}'
+      {{- end }}
+      {{- end }}
 {{- end }}

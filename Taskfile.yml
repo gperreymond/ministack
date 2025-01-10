@@ -2,6 +2,32 @@ version: '3'
 
 tasks:
 
+  certificats-generate:
+    internal: true
+    silent: true
+    cmds:
+      - |
+        datacenter="$(cat {{.CONFIG_FILE}} | yq -r '.datacenter')"
+        echo "[INFO] datacenter is $datacenter"
+        if [ -d "certs/$datacenter" ]; then
+          echo "[WARN] certificats alrady exists, we skip!"
+          exit 0
+        fi
+        echo "[INFO] generating certificats for consul"
+        mkdir -p certs/$datacenter
+        cd certs/$datacenter
+        consul tls ca create -domain=consul
+        consul tls cert create -server -dc=$datacenter -domain=consul
+
+  certificats-remove:
+    internal: true
+    silent: true
+    cmds:
+      - |
+        echo "[INFO] deleting all certificats"
+        datacenter="europe-paris"
+        rm -rf certs/$datacenter
+
   networks-create:
     internal: true
     silent: true
@@ -42,7 +68,7 @@ tasks:
     cmds:
       - |
         echo "[INFO] generating docker compose files"
-        if [[ ! -f "build" ]]; then
+        if [ -d "build" ]; then
           rm -rf build
         fi
         echo "[INFO] config file to use: {{.CONFIG_FILE}}"
@@ -55,24 +81,13 @@ tasks:
       - |
         echo "[INFO] starting docker compose services"
         docker compose --file build/cluster.yaml up -d
-        containers=$(docker ps --filter "label=ministack.enable=true" --format "{{ `{{.Names}}` }}")
-        if [[ -z "$containers" ]]; then
-          echo "[WARN] no running containers with label 'ministack.enable=true' found"
-          exit 0
-        fi
-        for container in $containers; do
-          echo "[INFO] executing 'start-ministack' on container: $container"
-          docker exec -it "$container" start-ministack
-          if [[ $? -ne 0 ]]; then
-            echo "[ERROR] failed to execute command on container: $container"
-          fi
-        done
 
   services-stop:
     internal: true
     silent: true
     cmds:
       - |
+        echo "[INFO] removing docker compose services"
         docker compose --file build/cluster.yaml down
 
   ministack-dry-run:
@@ -84,6 +99,9 @@ tasks:
   ministack-start:
     cmds:
       - task: networks-create
+      - task: certificats-generate
+        vars:
+          CONFIG_FILE: '{{.CLI_ARGS}}'
       - task: templates-generate
         vars:
           CONFIG_FILE: '{{.CLI_ARGS}}'
@@ -95,3 +113,6 @@ tasks:
         vars:
           CONFIG_FILE: '{{.CLI_ARGS}}'
       - task: services-stop
+      - task: certificats-remove
+        vars:
+          CONFIG_FILE: '{{.CLI_ARGS}}'

@@ -3,12 +3,8 @@
 ## Prepare your local environment
 
 ```sh
-$ asdf plugin add gomplate
-$ asdf plugin add task
-$ asdf plugin add nomad
-$ asdf plugin add consul
-$ asdf plugin add vault
-$ asdf install
+# we us "asdf" for versionning
+$ ./install-dependencies.sh
 ```
 
 ## Concepts
@@ -34,9 +30,9 @@ __Configuration__
 
 ```sh
 # start cluster
-$ ./bin/ministack -config clusters/old.yaml -command start
+$ ./bin/ministack -config clusters/old.yaml start
 # stop cluster
-$ ./bin/ministack -config clusters/old.yaml -command stop
+$ ./bin/ministack -config clusters/old.yaml stop
 ```
 
 ### Cluster mode dev
@@ -48,9 +44,9 @@ __Configuration__
 
 ```sh
 # start cluster
-$ ./bin/ministack -config clusters/dev.yaml -command start
+$ ./bin/ministack -config clusters/dev.yaml start
 # stop cluster
-$ ./bin/ministack -config clusters/dev.yaml -command stop
+$ ./bin/ministack -config clusters/dev.yaml stop
 ```
 
 ### Cluster mode all
@@ -62,9 +58,9 @@ __Configuration__
 
 ```sh
 # start cluster
-$ ./bin/ministack -config clusters/all.yaml -command start
+$ ./bin/ministack -config clusters/all.yaml start
 # stop cluster
-$ ./bin/ministack -config clusters/all.yaml -command stop
+$ ./bin/ministack -config clusters/all.yaml stop
 ```
 
 ## Some useful articles

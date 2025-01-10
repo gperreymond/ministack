@@ -7,6 +7,13 @@ services:
     container_name: '{{ .name }}'
     hostname: '{{ .name }}'
     privileged: 'true'
+    post_start:
+      - command: 'start-ministack'
+    pre_stop:
+      - command: 'service nomad stop'
+      {{- if (datasource "config").services.consul.enabled }}
+      - command: 'service consul stop'
+      {{- end }}
     environment:
       NOMAD_VERSION: '{{ (datasource "config").services.nomad.version }}'
       {{- if (datasource "config").services.consul.enabled }}
@@ -20,6 +27,7 @@ services:
       {{- if (datasource "config").services.consul.enabled }}
       - '../configurations/consul/config.hcl:/consul/config/config.hcl:ro'
       - '../configurations/consul/client.hcl:/etc/consul.d/config/client.hcl'
+      - '../../certs/{{ (datasource "config").datacenter }}:/certs:ro'
       {{- end }}
       - 'nomad_client_{{ .name }}_data:/nomad/data'
       {{- if (datasource "config").services.consul.enabled }}
@@ -27,6 +35,17 @@ services:
       {{- end }}
     networks:
       ministack-global: {}
+    depends_on:
+      {{- if (datasource "config").services.nomad.enabled }}
+      {{- range seq 1 (datasource "config").services.nomad.replicas }}
+      - 'nomad-server-{{.}}'
+      {{- end }}
+      {{- end }}
+      {{- if (datasource "config").services.consul.enabled }}
+      {{- range seq 1 (datasource "config").services.consul.replicas }}
+      - 'consul-server-{{.}}'
+      {{- end }}
+      {{- end }}
   {{- end }}
 
 volumes:

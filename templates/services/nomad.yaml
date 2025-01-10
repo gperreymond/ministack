@@ -6,6 +6,13 @@ services:
     container_name: 'nomad-server-{{ . }}'
     hostname: 'nomad-server-{{ . }}'
     privileged: 'true'
+    post_start:
+      - command: 'start-ministack'
+    pre_stop:
+      - command: 'service nomad stop'
+      {{- if (datasource "config").services.consul.enabled }}
+      - command: 'service consul stop'
+      {{- end }}
     environment:
       NOMAD_VERSION: '{{ (datasource "config").services.nomad.version }}'
       {{- if (datasource "config").services.consul.enabled }}
@@ -14,7 +21,6 @@ services:
     labels:
       - 'ministack.enable=true'
       - 'traefik.enable=true'
-      - 'traefik.docker.network=ministack-nomad'
       - 'traefik.http.routers.nomad.rule=Host(`nomad.docker.localhost`)'
       - 'traefik.http.routers.nomad.entrypoints=web'
       - 'traefik.http.services.nomad.loadbalancer.server.port=4646'
@@ -24,6 +30,7 @@ services:
       {{- if (datasource "config").services.consul.enabled }}
       - '../configurations/consul/config.hcl:/consul/config/config.hcl:ro'
       - '../configurations/consul/client.hcl:/etc/consul.d/config/client.hcl'
+      - '../../certs/{{ (datasource "config").datacenter }}:/certs:ro'
       {{- end }}
       - 'nomad_server_{{ . }}_data:/nomad/data'
       {{- if (datasource "config").services.consul.enabled }}
@@ -32,6 +39,12 @@ services:
     networks:
       ministack-global:
         ipv4_address: '10.1.0.2{{ . }}'
+    depends_on:
+      {{- if (datasource "config").services.consul.enabled }}
+      {{- range seq 1 (datasource "config").services.consul.replicas }}
+      - 'consul-server-{{.}}'
+      {{- end }}
+      {{- end }}
   {{- end }}
 
 volumes:

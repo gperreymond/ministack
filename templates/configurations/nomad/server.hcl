@@ -1,7 +1,7 @@
 {{- if (datasource "config").services.nomad.enabled -}}
 {{- if (datasource "config").services.consul.enabled }}
 consul {
-  address = "{{ `{{ GetInterfaceIP \"ministack0\" }}` }}:8500"
+  address = "consul-server-1:8500"
 }
 {{- else }}
 server_join {
