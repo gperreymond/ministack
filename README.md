@@ -4,11 +4,15 @@
 
 ...
 
-## Manage your own configurations
+## Install binary
 
-...
+```sh
+$ sudo curl -L https://github.com/gperreymond/ministack/releases/download/v1.0.0/ministack -o /usr/local/bin/ministack
+$ sudo chmod +x /usr/local/bin/ministack
+$ ministack --version
+```
 
-## Examples
+## Manage your own clusters
 
 Warnings:
 * stop a cluster before starting another one.
@@ -55,6 +59,10 @@ $ ministack --config clusters/all.yaml --start
 # stop cluster
 $ ministack --config clusters/all.yaml --stop
 ```
+
+## Customize your own configurations for nomad, consul and/or vault
+
+...
 
 ## Some useful articles
 

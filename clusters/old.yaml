@@ -10,7 +10,7 @@ services:
   nomad:
     enabled: true
     version: '1.8.2'
-    replicas: 1
+    replicas: 3
     clients: false
   vault:
     enabled: false
