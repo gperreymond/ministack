@@ -1,0 +1,58 @@
+{%- if services.nomad.enabled %}
+services:
+  {%- for i in range(start=1, end=services.nomad.replicas+1) %}
+  nomad-server-{{ i }}:
+    image: '{{ image.repository }}:{{ image.tag }}'
+    container_name: 'nomad-server-{{ i }}'
+    hostname: 'nomad-server-{{ i }}'
+    privileged: 'true'
+    post_start:
+      - command: 'start-ministack'
+    pre_stop:
+      - command: 'service nomad stop'
+      {%- if services.consul.enabled %}
+      - command: 'service consul stop'
+      {%- endif %}
+    environment:
+      NOMAD_VERSION: '{{ services.nomad.version }}'
+      {%- if services.consul.enabled %}
+      CONSUL_VERSION: '{{ services.consul.version }}'
+      {%- endif %}
+    {%- if plugins.traefik.enabled %}
+    labels:
+      - 'ministack.enable=true'
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.nomad.rule=Host(`nomad.docker.localhost`)'
+      - 'traefik.http.routers.nomad.entrypoints=web'
+      - 'traefik.http.services.nomad.loadbalancer.server.port=4646'
+    {%- endif %}
+    volumes:
+      - '../configurations/nomad/config.hcl:/nomad/config/config.hcl'
+      - '../configurations/nomad/server.hcl:/etc/nomad.d/config/server.hcl'
+      {%- if services.consul.enabled %}
+      - '../configurations/consul/config.hcl:/consul/config/config.hcl'
+      - '../configurations/consul/client.hcl:/etc/consul.d/config/client.hcl'
+      {%- endif %}
+      - 'nomad_server_{{ i }}_data:/nomad/data'
+      {%- if services.consul.enabled %}
+      - 'nomad_server_{{ i }}_consul_client_data:/consul/data'
+      {%- endif %}
+    networks:
+      ministack:
+        ipv4_address: '10.1.0.20{{ i }}'
+    {%- if services.consul.enabled %}
+    depends_on:
+      {%- for i in range(start=1, end=services.consul.replicas+1) %}
+      - 'consul-server-{{ i }}'
+      {%- endfor %}
+    {%- endif %}
+  {%- endfor %}
+
+volumes:
+  {%- for i in range(start=1, end=services.nomad.replicas+1) %}
+  nomad_server_{{ i }}_data: {}
+  {%- if services.consul.enabled %}
+  nomad_server_{{ i }}_consul_client_data: {}
+  {%- endif %}
+  {%- endfor %}
+{%- endif %}

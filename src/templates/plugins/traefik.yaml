@@ -1,7 +1,7 @@
-{{- if (datasource "config").plugins.traefik.enabled -}}
+{%- if plugins.traefik.enabled %}
 services:
   traefik:
-    image: 'traefik:v{{ (datasource "config").plugins.traefik.version }}'
+    image: 'traefik:v{{ plugins.traefik.version }}'
     container_name: 'traefik'
     command:
       - '--log.level=INFO'
@@ -15,46 +15,49 @@ services:
       - '--providers.file.directory=/traefik/configs/dynamic'
       - '--providers.docker=true'
       - '--providers.docker.exposedbydefault=false'
-      {{- if (datasource "config").services.nomad.enabled }}
+      {%- if services.nomad.enabled %}
       - '--providers.nomad=true'
       - '--providers.nomad.endpoint.address=http://nomad-server-1:4646'
       - '--providers.nomad.exposedByDefault=false'
-      {{- end }}
-      {{- if (datasource "config").services.consul.enabled }}
+      {%- endif %}
+      {%- if services.consul.enabled %}
       - '--providers.consulcatalog=true'
       - '--providers.consulcatalog.endpoint.address=consul-server-1:8500'
       - '--providers.consulcatalog.endpoint.scheme=http'
-      - '--providers.consulcatalog.endpoint.datacenter={{ (datasource "config").datacenter }}'
+      - '--providers.consulcatalog.endpoint.datacenter={{ datacenter }}'
       - '--providers.consulcatalog.servicename=traefik-ingress'
       - '--providers.consulcatalog.exposedByDefault=false'
       - '--providers.consulcatalog.connectAware=true'
       - '--providers.consulcatalog.connectByDefault=true'
       - '--providers.consulcatalog.refreshInterval=30s'
-      {{- end }}
+      {%- endif %}
       - '--entryPoints.web.address=:80'
       - '--entryPoints.metrics.address=:8082'
+    {%- if plugins.traefik.enabled %}
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.traefik-dashboard.rule=Host(`traefik.docker.localhost`)'
       - 'traefik.http.routers.traefik-dashboard.entrypoints=web'
       - 'traefik.http.routers.traefik-dashboard.service=api@internal'
+    {%- endif %}
     ports:
       - '80:80/tcp'
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock:ro'
-      - '../configurations/traefik/dynamic:/traefik/configs/dynamic:ro'
-      - '../../certs/{{ (datasource "config").datacenter }}:/certs:ro'
     networks:
-      ministack-global: {}
+      ministack:
+        ipv4_address: '10.1.0.10'
+    {%- if services.nomad.enabled or services.consul.enabled %}
     depends_on:
-      {{- if (datasource "config").services.nomad.enabled }}
-      {{- range seq 1 (datasource "config").services.nomad.replicas }}
-      - 'nomad-server-{{.}}'
-      {{- end }}
-      {{- end }}
-      {{- if (datasource "config").services.consul.enabled }}
-      {{- range seq 1 (datasource "config").services.consul.replicas }}
-      - 'consul-server-{{.}}'
-      {{- end }}
-      {{- end }}
-{{- end }}
+      {%- if services.nomad.enabled %}
+      {%- for i in range(start=1, end=services.nomad.replicas+1) %}
+      - 'nomad-server-{{ i }}'
+      {%- endfor %}
+      {%- endif %}
+      {%- if services.consul.enabled %}
+      {%- for i in range(start=1, end=services.consul.replicas+1) %}
+      - 'consul-server-{{ i }}'
+      {%- endfor %}
+      {%- endif %}
+    {%- endif %}
+{%- endif %}

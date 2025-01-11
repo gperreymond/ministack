@@ -1,23 +1,25 @@
 use clap::{Arg, Command};
-use include_dir::{include_dir, Dir};
+use include_dir::{include_dir, Dir, File};
 use serde_yaml::Value;
 use std::collections::HashMap;
 use std::fs;
-use std::process::Command as ShellCommand;
+use std::io::{BufRead, BufReader};
+use std::path::{Path};
+use std::process::{Command as ShellCommand, Stdio};
 use tera::{Context, Tera};
 
 // Embed the "templates" directory into the binary
-static TEMPLATES_DIR: Dir = include_dir!("templates");
+static TEMPLATES_DIR: Dir = include_dir!("src/templates");
 
-// Default output directory and file
-const OUTPUT_FILE: &str = "/tmp/ministack/docker-compose.yml";
+// Default output directory
+const OUTPUT_DIR: &str = "/tmp/ministack";
 
 fn main() {
     // Define the CLI arguments
     let matches = Command::new("Docker Compose Templating System")
-        .version("1.0")
-        .author("Your Name <your.email@example.com>")
-        .about("Generates a Docker Compose file from a predefined template and optionally starts or stops services")
+        .version("1.0.0")
+        .author("Gilles Perreymond <gperreymond@gmail.com>")
+        .about("Manage hashistack with only one binary.")
         .arg(
             Arg::new("config")
                 .short('c')
@@ -29,56 +31,53 @@ fn main() {
         .arg(
             Arg::new("start")
                 .long("start")
-                .help("Run 'docker-compose up -d' after generating the file")
-                .takes_value(false),
+                .action(clap::ArgAction::SetTrue)
+                .help("Run 'docker compose up -d' for all generated files"),
         )
         .arg(
             Arg::new("stop")
                 .long("stop")
-                .help("Run 'docker-compose down' to stop and remove services")
-                .takes_value(false),
+                .action(clap::ArgAction::SetTrue)
+                .help("Run 'docker compose down' for all generated files"),
         )
         .get_matches();
 
-    // Verify that `docker-compose` is installed
-    if !is_docker_compose_available() {
-        eprintln!("Error: 'docker-compose' is not installed or not accessible in the PATH.");
+    // Verify that `docker` is installed
+    if !is_docker_available() {
+        eprintln!("Error: 'docker' is not installed or not accessible in the PATH.");
         std::process::exit(1);
     }
 
-    // Retrieve the arguments
+    // Retrieve the config path and validate its existence
     let config_path = matches.get_one::<String>("config").expect("Config path is required");
-    let start_services = matches.contains_id("start");
-    let stop_services = matches.contains_id("stop");
+    if !Path::new(config_path).exists() {
+        eprintln!("Error: Configuration file '{}' does not exist.", config_path);
+        std::process::exit(1);
+    }
+
+    let start_services = matches.get_flag("start");
+    let stop_services = matches.get_flag("stop");
 
     // Load and parse the YAML configuration file
     let config_data = load_yaml(config_path);
 
-    // Load the template content from the embedded directory
-    let template_content = load_template("docker-compose.yml");
-
-    // Render the template with the YAML data
-    let output = render_template(&template_content, config_data);
-
-    // Write the rendered output to the default output file
-    write_to_file(OUTPUT_FILE, &output);
-
-    println!("Rendered Docker Compose file has been saved to '{}'", OUTPUT_FILE);
+    // Render all templates
+    let _ = render_all_templates(&config_data);
 
     // Start Docker Compose services if requested
     if start_services {
-        start_docker_compose(OUTPUT_FILE);
+        start_docker_compose();
     }
 
     // Stop Docker Compose services if requested
     if stop_services {
-        stop_docker_compose(OUTPUT_FILE);
+        stop_docker_compose();
     }
 }
 
-/// Check if `docker-compose` is available
-fn is_docker_compose_available() -> bool {
-    let status = ShellCommand::new("docker-compose")
+/// Check if `docker` is available
+fn is_docker_available() -> bool {
+    let status = ShellCommand::new("docker")
         .arg("--version")
         .status();
 
@@ -96,19 +95,82 @@ fn load_yaml(file_path: &str) -> HashMap<String, Value> {
         .unwrap_or_else(|_| panic!("Failed to parse YAML file at path: {}", file_path))
 }
 
-/// Load a template from the embedded directory
-fn load_template(template_name: &str) -> String {
-    let file = TEMPLATES_DIR
-        .get_file(template_name)
-        .unwrap_or_else(|| panic!("Template '{}' not found in embedded templates.", template_name));
+/// Render all templates in the embedded directory, including subdirectories
+fn render_all_templates(config_data: &HashMap<String, Value>) -> Vec<String> {
+    let mut generated_files = Vec::new();
 
-    file.contents_utf8()
-        .expect("Template file is not valid UTF-8")
-        .to_string()
+    // Ensure the output directory exists
+    let _ = fs::remove_dir_all(OUTPUT_DIR);
+    fs::create_dir_all(OUTPUT_DIR).unwrap_or_else(|_| panic!("Could not create directory: {}", OUTPUT_DIR));
+
+    // Traverse and render files recursively
+    traverse_and_render(&TEMPLATES_DIR, Path::new(OUTPUT_DIR), config_data, &mut generated_files);
+
+    generated_files
 }
 
-/// Render the template using Tera
-fn render_template(template_content: &str, data: HashMap<String, Value>) -> String {
+/// Recursively traverse the template directory and render templates
+fn traverse_and_render(
+    dir: &Dir,
+    output_dir: &Path,
+    config_data: &HashMap<String, Value>,
+    generated_files: &mut Vec<String>,
+) {
+    for entry in dir.entries() {
+        match entry {
+            include_dir::DirEntry::Dir(subdir) => {
+                // Construire le chemin du sous-dossier dans output_dir
+                let sub_output_dir = output_dir.join(subdir.path().strip_prefix(TEMPLATES_DIR.path()).unwrap());
+
+                // Appeler récursivement traverse_and_render
+                traverse_and_render(subdir, &sub_output_dir, config_data, generated_files);
+            }
+            include_dir::DirEntry::File(file) => {
+                // Rendre et sauvegarder les templates
+                render_and_save_template(file, config_data, generated_files);
+            }
+        }
+    }
+}
+
+/// Render a single template and save it to the output directory
+fn render_and_save_template(
+    file: &File,
+    config_data: &HashMap<String, Value>,
+    generated_files: &mut Vec<String>,
+) {
+    let template_path = file.path();
+    let template_content = file.contents_utf8().expect("Template file is not valid UTF-8");
+
+    // Calculer le chemin relatif correctement à partir de TEMPLATES_DIR
+    let relative_path = template_path
+        .strip_prefix(TEMPLATES_DIR.path())
+        .expect("Failed to strip TEMPLATES_DIR prefix");
+
+    // Combiner output_dir avec le chemin relatif
+    let formatted_path = format!("/tmp/ministack/{}", relative_path.display());
+    let output_path = Path::new(&formatted_path);
+
+
+    // Afficher les chemins pour debug
+    println!(
+        "Rendering template: '{}', saving to '{}'",
+        relative_path.display(),
+        output_path.display()
+    );
+
+    // Rendu du template
+    let output = render_template(template_content, config_data);
+
+    // Écriture du contenu dans le fichier de sortie
+    write_to_file(output_path.to_str().unwrap(), &output);
+
+    // Ajouter le fichier généré à la liste
+    generated_files.push(output_path.to_str().unwrap().to_string());
+}
+
+/// Render a single template using Tera
+fn render_template(template_content: &str, data: &HashMap<String, Value>) -> String {
     let mut tera = Tera::default();
     tera.add_raw_template("template", template_content)
         .expect("Failed to load the template");
@@ -124,42 +186,91 @@ fn render_template(template_content: &str, data: HashMap<String, Value>) -> Stri
 
 /// Write the rendered output to a file
 fn write_to_file(output_path: &str, content: &str) {
-    fs::create_dir_all("/tmp/ministack").unwrap_or_else(|_| panic!("Could not create directory: /tmp/ministack"));
+    let path = Path::new(output_path);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).unwrap_or_else(|_| panic!("Could not create directory: {}", parent.display()));
+    }
     fs::write(output_path, content)
         .unwrap_or_else(|_| panic!("Could not write to file at path: {}", output_path));
 }
 
-/// Run `docker-compose up -d` on the generated file
-fn start_docker_compose(output_path: &str) {
+/// Run `docker compose up -d` for all generated files
+fn start_docker_compose() {
     println!("Starting Docker Compose services...");
-    let status = ShellCommand::new("docker-compose")
-        .arg("-f")
-        .arg(output_path)
+
+    let compose_file = "/tmp/ministack/cluster.yaml";
+    if !Path::new(compose_file).exists() {
+        eprintln!("Error: Docker Compose file '{}' does not exist.", compose_file);
+        std::process::exit(1);
+    }
+
+    let mut command = ShellCommand::new("docker")
+        .arg("compose")
+        .arg("--file")
+        .arg(compose_file)
         .arg("up")
         .arg("-d")
-        .status()
-        .expect("Failed to execute 'docker-compose up -d'");
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to execute 'docker compose up -d'");
 
-    if status.success() {
-        println!("Docker Compose services started successfully.");
-    } else {
-        eprintln!("Failed to start Docker Compose services.");
+    let stdout = command.stdout.take().expect("Could not capture stdout");
+    let stderr = command.stderr.take().expect("Could not capture stderr");
+
+    let stdout_reader = BufReader::new(stdout);
+    let stderr_reader = BufReader::new(stderr);
+
+    for line in stdout_reader.lines() {
+        println!("{}", line.unwrap());
+    }
+
+    for line in stderr_reader.lines() {
+        eprintln!("{}", line.unwrap());
+    }
+
+    let status = command.wait().expect("Failed to wait for command");
+    if !status.success() {
+        eprintln!("Command failed with status: {}", status);
     }
 }
 
-/// Run `docker-compose down` on the generated file
-fn stop_docker_compose(output_path: &str) {
+/// Run `docker compose down` for all generated files
+fn stop_docker_compose() {
     println!("Stopping Docker Compose services...");
-    let status = ShellCommand::new("docker-compose")
-        .arg("-f")
-        .arg(output_path)
-        .arg("down")
-        .status()
-        .expect("Failed to execute 'docker-compose down'");
 
-    if status.success() {
-        println!("Docker Compose services stopped successfully.");
-    } else {
-        eprintln!("Failed to stop Docker Compose services.");
+    let compose_file = "/tmp/ministack/cluster.yaml";
+    if !Path::new(compose_file).exists() {
+        eprintln!("Error: Docker Compose file '{}' does not exist.", compose_file);
+        std::process::exit(1);
+    }
+
+    let mut command = ShellCommand::new("docker")
+        .arg("compose")
+        .arg("--file")
+        .arg(compose_file)
+        .arg("down")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to execute 'docker compose down'");
+
+    let stdout = command.stdout.take().expect("Could not capture stdout");
+    let stderr = command.stderr.take().expect("Could not capture stderr");
+
+    let stdout_reader = BufReader::new(stdout);
+    let stderr_reader = BufReader::new(stderr);
+
+    for line in stdout_reader.lines() {
+        println!("{}", line.unwrap());
+    }
+
+    for line in stderr_reader.lines() {
+        eprintln!("{}", line.unwrap());
+    }
+
+    let status = command.wait().expect("Failed to wait for command");
+    if !status.success() {
+        eprintln!("Command failed with status: {}", status);
     }
 }

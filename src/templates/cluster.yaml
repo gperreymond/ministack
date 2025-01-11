@@ -1,0 +1,25 @@
+name: '{{ name }}'
+
+include:
+  {%- if plugins.traefik.enabled %}
+  - 'plugins/traefik.yaml'
+  {%- endif %}
+  {%- if services.consul.enabled %}
+  - 'services/consul.yaml'
+  {%- endif %}
+  {%- if services.nomad.enabled %}
+  - 'services/nomad.yaml'
+  {%- if services.nomad.clients %}
+  - 'services/nomad-clients.yaml'
+  {%- endif %}
+  {%- endif %}
+  {%- if services.vault.enabled %}
+  - 'services/vault.yaml'
+  {%- endif %}
+
+networks:
+  ministack:
+    driver: 'bridge'
+    ipam:
+      config:
+        - subnet: '10.1.0.0/24'

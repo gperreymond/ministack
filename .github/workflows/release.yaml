@@ -1,0 +1,46 @@
+name: Build and Release binary
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: '1.84.0'
+          override: true
+
+      - name: Build the project in release mode
+        run: cargo build --release
+
+      - name: Upload binary to GitHub Actions artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: binary
+          path: target/release
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v3
+        with:
+          name: binary
+          path: binaries
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: binaries/*
+          token: ${{ secrets.GITHUB_TOKEN }}

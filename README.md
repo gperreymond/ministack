@@ -1,12 +1,5 @@
 # MINISTACK
 
-## Prepare your local environment
-
-```sh
-# we us "asdf" for versionning
-$ ./install-dependencies.sh
-```
-
 ## Concepts
 
 ...
@@ -18,21 +11,21 @@ $ ./install-dependencies.sh
 ## Examples
 
 Warnings:
-* docker networks will be created for all examples.
 * stop a cluster before starting another one.
+* all data will persist.
 
 ### Cluster mode old versions
 
 __Configuration__
 * consul is disable
-* nomad with replicas 1, version 1.8.2
+* nomad with replicas 3, version 1.8.2
 * vault is disable
 
 ```sh
 # start cluster
-$ ./bin/ministack -config clusters/old.yaml start
+$ ministack --config clusters/old.yaml --start
 # stop cluster
-$ ./bin/ministack -config clusters/old.yaml stop
+$ ministack --config clusters/old.yaml --stop
 ```
 
 ### Cluster mode dev
@@ -44,9 +37,9 @@ __Configuration__
 
 ```sh
 # start cluster
-$ ./bin/ministack -config clusters/dev.yaml start
+$ ministack --config clusters/dev.yaml --start
 # stop cluster
-$ ./bin/ministack -config clusters/dev.yaml stop
+$ ministack --config clusters/dev.yaml --stop
 ```
 
 ### Cluster mode all
@@ -58,9 +51,9 @@ __Configuration__
 
 ```sh
 # start cluster
-$ ./bin/ministack -config clusters/all.yaml start
+$ ministack --config clusters/all.yaml --start
 # stop cluster
-$ ./bin/ministack -config clusters/all.yaml stop
+$ ministack --config clusters/all.yaml --stop
 ```
 
 ## Some useful articles

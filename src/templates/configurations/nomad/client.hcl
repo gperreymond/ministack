@@ -1,24 +1,24 @@
-{{- if (datasource "config").services.nomad.enabled -}}
+{%- if services.nomad.enabled %}
 server {
   enabled = false
 }
 
-{{- if (datasource "config").services.consul.enabled }}
+{%- if services.consul.enabled %}
 consul {
   address = "consul-server-1:8500"
   grpc_address = "consul-server-1:8502"
 }
-{{- else }}
+{%- else %}
 server_join {
   retry_max = 3
   retry_interval = "15s"
   retry_join = [
-    {{- range seq 1 (datasource "config").services.nomad.replicas }}
-    "nomad-server-{{ . }}",
-    {{- end }}
+    {%- for i in range(start=1, end=services.nomad.replicas+1) %}
+    "nomad-server-{{ i }}",
+    {%- endfor %}
   ]
 }
-{{- end }}
+{%- endif %}
 
 client {
   enabled = true
@@ -37,4 +37,4 @@ plugin "docker" {
     extra_labels = ["job_name", "task_group_name", "task_name", "namespace", "node_name"]
   }
 }
-{{- end }}
+{%- endif %}
