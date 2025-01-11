@@ -16,7 +16,7 @@ const OUTPUT_DIR: &str = "/tmp/ministack";
 
 fn main() {
     // Define the CLI arguments
-    let matches = Command::new("Docker Compose Templating System")
+    let matches = Command::new("Manage hashistack with only one binary.")
         .version("1.0.0")
         .author("Gilles Perreymond <gperreymond@gmail.com>")
         .about("Manage hashistack with only one binary.")
