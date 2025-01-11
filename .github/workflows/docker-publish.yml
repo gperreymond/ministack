@@ -8,7 +8,7 @@ name: Build and Release docker image
 on:
   push:
     tags:
-      - 'build-*'
+      - 'base-*'
 
 env:
   # Use docker.io for Docker Hub if empty
