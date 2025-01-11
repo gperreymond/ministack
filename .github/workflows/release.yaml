@@ -13,23 +13,30 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        target: [x86_64-unknown-linux-gnu]
+        os: [ubuntu-latest, macos-latest]
+        target: [x86_64-unknown-linux-gnu, x86_64-apple-darwin]
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             asset_name: ministack-linux
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            asset_name: ministack-macos
+
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: '1.84.0'
           override: true
           target: ${{ matrix.target }}
+
       - name: Build the project in release mode
         run: cargo build --release --target ${{ matrix.target }}
+
       - name: Check if release exists
         id: check_release
         run: |
@@ -44,6 +51,7 @@ jobs:
             echo "::set-output name=release_exists::true"
             echo "::set-output name=release_url::$RELEASE_URL"
           fi
+
       - name: Create Release
         if: steps.check_release.outputs.release_exists == 'false'
         id: create_release
@@ -55,6 +63,11 @@ jobs:
           release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
+
+      - name: Debug upload URL
+        run: |
+          echo "Upload URL: ${{ steps.create_release.outputs.upload_url || steps.check_release.outputs.release_url }}"
+
       - name: Upload binary to assets
         uses: actions/upload-release-asset@v1
         env:
