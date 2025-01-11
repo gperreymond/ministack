@@ -2,7 +2,7 @@ name: 'hashistack-dev'
 datacenter: 'europe-paris'
 image:
   repository: 'ghcr.io/gperreymond/hashibase'
-  tag: 'main'
+  tag: 'base-1.0.0'
 
 services:
   consul:

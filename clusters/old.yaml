@@ -2,7 +2,7 @@ name: 'hashistack-old'
 datacenter: 'local'
 image:
   repository: 'ghcr.io/gperreymond/hashibase'
-  tag: 'main'
+  tag: 'base-1.0.0'
 
 services:
   consul:
