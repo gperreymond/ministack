@@ -21,8 +21,22 @@ jobs:
           override: true
       - name: Build the project in release mode
         run: cargo build --release
-      - name: Upload binary to assets
-        uses: AButler/upload-release-assets@v3.0
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: "target/release/ministack"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Upload binary to assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: target/release/ministack
+          asset_name: ministack
+          asset_content_type: application/octet-stream
