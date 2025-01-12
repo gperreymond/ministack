@@ -71,3 +71,4 @@ $ ministack --config examples/nomad-with-consul.yaml --stop
 ## Some useful articles
 
 * https://romanzipp.com/blog/get-started-with-hashi-nomad-consul
+* https://mrkaran.dev/posts/nomad-networking-explained

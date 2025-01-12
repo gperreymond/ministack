@@ -1,7 +1,7 @@
 {%- if services.consul.enabled %}
 datacenter = "{{ datacenter }}"
 data_dir = "/consul/data"
-log_level = "INFO"
+log_level = "{%- if log_level -%}{{ log_level }}{%- else -%}INFO{%- endif -%}"
 log_json = true
 
 ports {
@@ -17,5 +17,6 @@ retry_join = [
 
 advertise_addr = "{{ `{{ GetInterfaceIP \"eth0\" }}` }}"
 client_addr = "{{ `{{ GetInterfaceIP \"eth0\" }}` }}"
+
 bind_addr = "{{ `{{ GetInterfaceIP \"eth0\" }}` }}"
 {%- endif %}

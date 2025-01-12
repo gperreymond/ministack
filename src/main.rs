@@ -4,7 +4,7 @@ use serde_yaml::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::io::{BufRead, BufReader};
-use std::path::{Path};
+use std::path::Path;
 use std::process::{Command as ShellCommand, Stdio};
 use tera::{Context, Tera};
 
