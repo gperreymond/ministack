@@ -48,14 +48,16 @@ services:
     # if enabled is true, version is not mandatory
     # default version will be "1.20.1"
     version: 'x.x.x'
-    # mandatory
+    # if enabled is true, mandatory
+    # it will be => bootstrap_expect
     replicas: 1
   nomad:
     enabled: true
     # if enabled is true, version is not mandatory
     # default version will be "1.9.4"
     version: 'x.x.x'
-    # mandatory
+    # if enabled is true, mandatory
+    # it will be => bootstrap_expect
     replicas: 1
     # not mandatory
     clients:
