@@ -16,9 +16,9 @@ To install Ministack, follow these steps:
 
 ```bash
 # on linux
-sudo curl -L https://github.com/gperreymond/ministack/releases/download/v1.0.1/ministack-linux -o /usr/local/bin/ministack
+sudo curl -L https://github.com/gperreymond/ministack/releases/download/v1.0.2/ministack-linux -o /usr/local/bin/ministack
 # on macos
-sudo curl -L https://github.com/gperreymond/ministack/releases/download/v1.0.1/ministack-macos -o /usr/local/bin/ministack
+sudo curl -L https://github.com/gperreymond/ministack/releases/download/v1.0.2/ministack-macos -o /usr/local/bin/ministack
 # then, move the binary
 sudo chmod +x /usr/local/bin/ministack
 # check if all is ok
@@ -72,3 +72,4 @@ $ ministack --config examples/nomad-with-consul.yaml --stop
 
 * https://romanzipp.com/blog/get-started-with-hashi-nomad-consul
 * https://mrkaran.dev/posts/nomad-networking-explained
+
