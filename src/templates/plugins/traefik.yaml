@@ -11,8 +11,6 @@ services:
       - '--metrics.prometheus.addEntryPointsLabels=true'
       - '--metrics.prometheus.addServicesLabels=true'
       - '--metrics.prometheus.addrouterslabels=true'
-      - '--providers.file.watch=true'
-      - '--providers.file.directory=/traefik/configs/dynamic'
       - '--providers.docker=true'
       - '--providers.docker.exposedbydefault=false'
       {%- if services.nomad.enabled %}
