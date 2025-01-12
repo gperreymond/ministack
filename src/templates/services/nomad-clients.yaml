@@ -14,8 +14,11 @@ services:
       - command: 'service consul stop'
       {%- endif %}
     environment:
+      MINISTACK: 'true'
+      {%- if services.nomad.version %}
       NOMAD_VERSION: '{{ services.nomad.version }}'
-      {%- if services.consul.enabled %}
+      {%- endif %}
+      {%- if services.consul.version %}
       CONSUL_VERSION: '{{ services.consul.version }}'
       {%- endif %}
     volumes:

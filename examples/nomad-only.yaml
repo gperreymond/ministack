@@ -1,4 +1,4 @@
-name: 'hashistack-old'
+name: 'hashistack-single'
 datacenter: 'local'
 
 image:
