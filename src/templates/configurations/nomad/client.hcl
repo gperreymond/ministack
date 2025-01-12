@@ -4,14 +4,12 @@ server {
 }
 
 {%- if services.consul.enabled %}
-consul {
-  address = "consul-server-1:8500"
-  grpc_address = "consul-server-1:8502"
-}
+consul {}
 {%- endif %}
 
 client {
   enabled = true
+  network_interface = "{{ `{{ GetPrivateInterfaces | include \"network\" \"10.1.0.0/24\" | attr \"name\" }}` }}"
   {%- if not services.consul.enabled %}
   servers = [
     {%- for i in range(start=1, end=services.nomad.replicas+1) %}

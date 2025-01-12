@@ -1,8 +1,6 @@
 {%- if services.nomad.enabled %}
 {%- if services.consul.enabled %}
-consul {
-  address = "consul-server-1:8500"
-}
+consul {}
 {%- endif %}
 
 server {

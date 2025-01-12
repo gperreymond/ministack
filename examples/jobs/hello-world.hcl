@@ -17,7 +17,7 @@ job "hello-world" {
       name     = "hello-world-port-http"
       port     = "http"
       connect {
-        native = true
+        sidecar_service {}
       }
       check {
         type = "http"
