@@ -4,7 +4,7 @@ use serde_yaml::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::io::{BufRead, BufReader};
-use std::path::{Path};
+use std::path::Path;
 use std::process::{Command as ShellCommand, Stdio};
 use tera::{Context, Tera};
 
@@ -17,7 +17,7 @@ const OUTPUT_DIR: &str = "/tmp/ministack";
 fn main() {
     // Define the CLI arguments
     let matches = Command::new("Manage hashistack with only one binary.")
-        .version("1.0.0")
+        .version("1.0.1")
         .author("Gilles Perreymond <gperreymond@gmail.com>")
         .about("Manage hashistack with only one binary.")
         .arg(

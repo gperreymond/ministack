@@ -1,5 +1,6 @@
 name: 'hashistack-dev'
 datacenter: 'europe-paris'
+log_level: 'DEBUG'
 
 image:
   repository: 'ghcr.io/gperreymond/hashibase'
