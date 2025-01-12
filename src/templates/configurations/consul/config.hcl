@@ -1,7 +1,7 @@
 {%- if services.consul.enabled %}
 datacenter = "{{ datacenter }}"
 data_dir = "/consul/data"
-log_level = "{%- if log_level -%}{{ log_level }}{%- else -%}INFO{%- endif -%}"
+log_level = "{%- if log_level -%}{{ log_level }}{%- else -%}info{%- endif -%}"
 log_json = true
 
 ports {

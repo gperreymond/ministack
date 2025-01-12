@@ -25,7 +25,52 @@ sudo chmod +x /usr/local/bin/ministack
 ministack --version
 ```
 
-## Exemples of usages
+## Cluster configuration details
+
+```yaml
+# mandatory
+name: 'the cluster name'
+# mandatory
+datacenter: 'datacenter name used for nomad/consul'
+# not mandatory, default is "info"
+log_level: 'trace|debug|info|warn|error'
+
+# mandatory
+# for now we have only one docker image
+image:
+  repository: 'ghcr.io/gperreymond/hashibase'
+  tag: 'base-1.0.0'
+
+# nothing mandatory here
+services:
+  consul:
+    enabled: true
+    # if enabled is true, version is not mandatory
+    # default version will be "1.20.1"
+    version: 'x.x.x'
+    # mandatory
+    replicas: 1
+  nomad:
+    enabled: true
+    # if enabled is true, version is not mandatory
+    # default version will be "1.9.4"
+    version: 'x.x.x'
+    # mandatory
+    replicas: 1
+    # not mandatory
+    clients:
+      - name: worker-pikachu
+      - name: worker-ronflex
+
+# nothing mandatory here
+plugins:
+  traefik:
+    enabled: true
+    # if enabled is true, version is mandatory, only 3.x.x
+    version: '3.3.1'
+```
+
+## Some examples
 
 Warnings:
 * stop a cluster before starting another one.

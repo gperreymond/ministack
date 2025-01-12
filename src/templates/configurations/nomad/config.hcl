@@ -1,7 +1,7 @@
 {%- if services.nomad.enabled %}
 datacenter = "{{ datacenter }}"
 data_dir = "/nomad/data"
-log_level = "{%- if log_level -%}{{ log_level }}{%- else -%}INFO{%- endif -%}"
+log_level = "{%- if log_level -%}{{ log_level }}{%- else -%}info{%- endif -%}"
 log_json = true
 
 leave_on_interrupt = true
