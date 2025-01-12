@@ -9,9 +9,10 @@ services:
     enabled: false
   nomad:
     enabled: true
-    version: '1.8.2'
+    version: '1.9.4'
     replicas: 3
-    clients: false
+    clients:
+      - name: worker-rondoudou
   vault:
     enabled: false
 

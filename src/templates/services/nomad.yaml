@@ -20,7 +20,6 @@ services:
       {%- endif %}
     {%- if plugins.traefik.enabled %}
     labels:
-      - 'ministack.enable=true'
       - 'traefik.enable=true'
       - 'traefik.http.routers.nomad.rule=Host(`nomad.docker.localhost`)'
       - 'traefik.http.routers.nomad.entrypoints=web'

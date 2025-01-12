@@ -14,7 +14,6 @@ services:
       CONSUL_VERSION: '{{ services.consul.version }}'
     {%- if plugins.traefik.enabled %}
     labels:
-      - 'ministack.enable=true'
       - 'traefik.enable=true'
       - 'traefik.http.routers.consul.rule=Host(`consul.docker.localhost`)'
       - 'traefik.http.routers.consul.entrypoints=web'

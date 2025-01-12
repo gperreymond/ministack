@@ -8,20 +8,17 @@ consul {
   address = "consul-server-1:8500"
   grpc_address = "consul-server-1:8502"
 }
-{%- else %}
-server_join {
-  retry_max = 3
-  retry_interval = "15s"
-  retry_join = [
-    {%- for i in range(start=1, end=services.nomad.replicas+1) %}
-    "nomad-server-{{ i }}",
-    {%- endfor %}
-  ]
-}
 {%- endif %}
 
 client {
   enabled = true
+  {%- if not services.consul.enabled %}
+  servers = [
+    {%- for i in range(start=1, end=services.nomad.replicas+1) %}
+    "nomad-server-{{ i }}:4647",
+    {%- endfor %}
+  ]
+  {%- endif %}
   template {
     disable_file_sandbox = true
   }

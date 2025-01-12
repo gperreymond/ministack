@@ -1,0 +1,55 @@
+{%- if services.nomad.enabled and services.nomad.clients %}
+services:
+  {%- for client in services.nomad.clients %}
+  {{ client.name }}:
+    image: '{{ image.repository }}:{{ image.tag }}'
+    container_name: '{{ client.name }}'
+    hostname: '{{ client.name }}'
+    privileged: 'true'
+    post_start:
+      - command: 'start-ministack'
+    pre_stop:
+      - command: 'service nomad stop'
+      {%- if services.consul.enabled %}
+      - command: 'service consul stop'
+      {%- endif %}
+    environment:
+      NOMAD_VERSION: '{{ services.nomad.version }}'
+      {%- if services.consul.enabled %}
+      CONSUL_VERSION: '{{ services.consul.version }}'
+      {%- endif %}
+    volumes:
+      - '../configurations/nomad/config.hcl:/nomad/config/config.hcl:ro'
+      - '../configurations/nomad/client.hcl:/etc/nomad.d/config/client.hcl'
+      {%- if services.consul.enabled %}
+      - '../configurations/consul/config.hcl:/consul/config/config.hcl:ro'
+      - '../configurations/consul/client.hcl:/etc/consul.d/config/client.hcl'
+      {%- endif %}
+      - 'nomad_client_{{ client.name }}_data:/nomad/data'
+      {%- if services.consul.enabled %}
+      - 'nomad_client_{{ client.name }}_consul_client_data:/consul/data'
+      {%- endif %}
+    networks:
+      ministack:
+        ipv4_address: '10.1.0.2{{ loop.index }}'
+    depends_on:
+      {%- if services.nomad.enabled %}
+      {%- for i in range(start=1, end=services.nomad.replicas+1) %}
+      - 'nomad-server-{{ i }}'
+      {%- endfor %}
+      {%- endif %}
+      {%- if services.consul.enabled %}
+      {%- for i in range(start=1, end=services.consul.replicas+1) %}
+      - 'consul-server-{{ i }}'
+      {%- endfor %}
+      {%- endif %}
+  {%- endfor %}
+
+volumes:
+  {%- for client in services.nomad.clients %}
+  nomad_client_{{ client.name }}_data: {}
+  {%- if services.consul.enabled %}
+  nomad_client_{{ client.name }}_consul_client_data: {}
+  {%- endif %}
+  {%- endfor %}
+{%- endif %}
