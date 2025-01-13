@@ -38,12 +38,14 @@ services:
     depends_on:
       {%- if services.nomad.enabled %}
       {%- for i in range(start=1, end=services.nomad.replicas+1) %}
-      - 'nomad-server-{{ i }}'
+      'nomad-server-{{ i }}':
+        condition: service_healthy
       {%- endfor %}
       {%- endif %}
       {%- if services.consul.enabled %}
       {%- for i in range(start=1, end=services.consul.replicas+1) %}
-      - 'consul-server-{{ i }}'
+      'consul-server-{{ i }}':
+        condition: service_healthy
       {%- endfor %}
       {%- endif %}
   {%- endfor %}

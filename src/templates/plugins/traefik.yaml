@@ -5,6 +5,7 @@ services:
     container_name: 'traefik'
     command:
       - '--log.level={%- if plugins.traefik.log_level -%}{{ plugins.traefik.log_level }}{%- else -%}INFO{%- endif -%}'
+      - '--ping=true'
       - '--api.insecure=true'
       - '--metrics.prometheus.entryPoint=metrics'
       - '--metrics.prometheus=true'
@@ -48,12 +49,14 @@ services:
     depends_on:
       {%- if services.nomad.enabled %}
       {%- for i in range(start=1, end=services.nomad.replicas+1) %}
-      - 'nomad-server-{{ i }}'
+      'nomad-server-{{ i }}':
+        condition: service_healthy
       {%- endfor %}
       {%- endif %}
       {%- if services.consul.enabled %}
       {%- for i in range(start=1, end=services.consul.replicas+1) %}
-      - 'consul-server-{{ i }}'
+      'consul-server-{{ i }}':
+        condition: service_healthy
       {%- endfor %}
       {%- endif %}
     {%- endif %}
