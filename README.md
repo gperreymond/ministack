@@ -113,6 +113,13 @@ $ ministack --config examples/nomad-with-consul.yaml --start
 $ ministack --config examples/nomad-with-consul.yaml --stop
 ```
 
+You will find 3 kinds of nomad jobs in __examples/jobs__:
+* one with service provider nomad
+* one with service provider consul, and connect native "true"
+* one with service provider consul, and connect with sidecar proxy "mesh"
+
+> Don't forget to activate in consul web, a global "intention allowing all to all"
+
 ## Customize your own configurations for nomad, consul and/or vault
 
 ...
