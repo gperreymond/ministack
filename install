@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -e
+
+# Function to fetch the latest release version from GitHub
+get_latest_release() {
+    curl --silent "https://api.github.com/repos/gperreymond/ministack/releases/latest" |
+    grep -Po '"tag_name": "\K.*?(?=")'
+}
+
+# Detect the operating system
+OS=$(uname -s)
+
+# Fetch the latest version of ministack
+LATEST_VERSION=$(get_latest_release)
+
+echo "[INFO] latest ministack version: $LATEST_VERSION"
+
+# Download the binary based on the operating system
+if [[ "$OS" == "Linux" ]]; then
+    echo "[INFO] downloading ministack for Linux..."
+    sudo curl -L "https://github.com/gperreymond/ministack/releases/download/$LATEST_VERSION/ministack-linux" -o /usr/local/bin/ministack
+elif [[ "$OS" == "Darwin" ]]; then
+    echo "[INFO] downloading ministack for macOS..."
+    sudo curl -L "https://github.com/gperreymond/ministack/releases/download/$LATEST_VERSION/ministack-macos" -o /usr/local/bin/ministack
+else
+    echo "[ERROR] unsupported operating system: $OS"
+    exit 1
+fi
+
+# Set execution permissions on the binary
+echo "[INFO] setting execute permissions on the binary..."
+sudo chmod +x /usr/local/bin/ministack
+
+# Verify the installation
+echo "[INFO] verifying installation..."
+ministack --version
+
+echo "[INFO] installation completed successfully."
