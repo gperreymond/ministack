@@ -1,4 +1,4 @@
-name: 'hashistack-old'
+name: 'hashistack-single'
 datacenter: 'local'
 
 image:
@@ -6,16 +6,12 @@ image:
   tag: 'base-1.0.0'
 
 services:
-  consul:
-    enabled: false
   nomad:
     enabled: true
     version: '1.9.4'
     replicas: 3
     clients:
-      - name: worker-rondoudou
-  vault:
-    enabled: false
+      - name: 'worker-rondoudou'
 
 plugins:
   traefik:

@@ -1,15 +1,21 @@
 {%- if services.consul.enabled %}
 datacenter = "{{ datacenter }}"
 data_dir = "/consul/data"
-log_level = "{%- if log_level -%}{{ log_level }}{%- else -%}INFO{%- endif -%}"
+log_level = "{%- if log_level -%}{{ log_level }}{%- else -%}info{%- endif -%}"
 log_json = true
 
 ports {
-  grpc     = 8502
+  https = 8501 
+  grpc = 8502
   grpc_tls = -1
 }
 
 tls {
+  defaults {
+    verify_incoming = false
+    verify_outgoing = false
+    verify_server_hostname = false
+  }
   grpc {
     use_auto_cert = false
   }

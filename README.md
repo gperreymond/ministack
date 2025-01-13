@@ -16,16 +16,65 @@ To install Ministack, follow these steps:
 
 ```bash
 # on linux
-sudo curl -L https://github.com/gperreymond/ministack/releases/download/v1.0.1/ministack-linux -o /usr/local/bin/ministack
+sudo curl -L https://github.com/gperreymond/ministack/releases/download/v1.0.2/ministack-linux -o /usr/local/bin/ministack
 # on macos
-sudo curl -L https://github.com/gperreymond/ministack/releases/download/v1.0.1/ministack-macos -o /usr/local/bin/ministack
+sudo curl -L https://github.com/gperreymond/ministack/releases/download/v1.0.2/ministack-macos -o /usr/local/bin/ministack
 # then, move the binary
 sudo chmod +x /usr/local/bin/ministack
 # check if all is ok
 ministack --version
 ```
 
-## Exemples of usages
+## Cluster configuration details
+
+```yaml
+# mandatory
+name: 'the cluster name'
+# mandatory
+datacenter: 'datacenter name used for nomad/consul'
+# not mandatory, default is "info"
+log_level: 'trace|debug|info|warn|error'
+
+# mandatory
+# for now we have only one docker image
+image:
+  repository: 'ghcr.io/gperreymond/hashibase'
+  tag: 'base-1.0.0'
+
+# nothing mandatory here
+services:
+  consul:
+    enabled: true
+    # if enabled is true, version is not mandatory
+    # default version will be "1.20.1"
+    version: 'x.x.x'
+    # if enabled is true, mandatory
+    # it will be => bootstrap_expect
+    replicas: 1
+  nomad:
+    enabled: true
+    # if enabled is true, version is not mandatory
+    # default version will be "1.9.4"
+    version: 'x.x.x'
+    # if enabled is true, mandatory
+    # it will be => bootstrap_expect
+    replicas: 1
+    # not mandatory
+    clients:
+      - name: 'worker-pikachu'
+      - name: 'worker-ronflex'
+
+# nothing mandatory here
+plugins:
+  traefik:
+    enabled: true
+    # not mandatory, default is "INFO"
+    log_level: 'RACE|DEBUG|INFO|WARN|ERROR|FATAL|PANIC'
+    # if enabled is true, version is mandatory, only 3.x.x
+    version: '3.3.1'
+```
+
+## Some examples
 
 Warnings:
 * stop a cluster before starting another one.
@@ -64,6 +113,13 @@ $ ministack --config examples/nomad-with-consul.yaml --start
 $ ministack --config examples/nomad-with-consul.yaml --stop
 ```
 
+You will find 3 kinds of nomad jobs in __examples/jobs__:
+* one with service provider nomad
+* one with service provider consul, and connect native "true"
+* one with service provider consul, and connect with sidecar proxy "mesh"
+
+> Don't forget to activate in consul web, a global "intention allowing all to all"
+
 ## Customize your own configurations for nomad, consul and/or vault
 
 ...
@@ -72,3 +128,4 @@ $ ministack --config examples/nomad-with-consul.yaml --stop
 
 * https://romanzipp.com/blog/get-started-with-hashi-nomad-consul
 * https://mrkaran.dev/posts/nomad-networking-explained
+

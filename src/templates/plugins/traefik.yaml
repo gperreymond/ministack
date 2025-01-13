@@ -4,7 +4,7 @@ services:
     image: 'traefik:v{{ plugins.traefik.version }}'
     container_name: 'traefik'
     command:
-      - '--log.level=INFO'
+      - '--log.level={%- if plugins.traefik.log_level -%}{{ plugins.traefik.log_level }}{%- else -%}INFO{%- endif -%}'
       - '--api.insecure=true'
       - '--metrics.prometheus.entryPoint=metrics'
       - '--metrics.prometheus=true'
@@ -23,10 +23,9 @@ services:
       - '--providers.consulcatalog.endpoint.address=consul-server-1:8500'
       - '--providers.consulcatalog.endpoint.scheme=http'
       - '--providers.consulcatalog.endpoint.datacenter={{ datacenter }}'
-      - '--providers.consulcatalog.servicename=traefik-ingress'
       - '--providers.consulcatalog.exposedByDefault=false'
       - '--providers.consulcatalog.connectAware=true'
-      - '--providers.consulcatalog.connectByDefault=true'
+      - '--providers.consulcatalog.connectByDefault=false'
       - '--providers.consulcatalog.refreshInterval=30s'
       {%- endif %}
       - '--entryPoints.web.address=:80'

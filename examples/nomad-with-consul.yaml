@@ -1,6 +1,6 @@
 name: 'hashistack-dev'
 datacenter: 'europe-paris'
-log_level: 'DEBUG'
+log_level: 'debug'
 
 image:
   repository: 'ghcr.io/gperreymond/hashibase'
@@ -16,12 +16,11 @@ services:
     version: '1.9.4'
     replicas: 1
     clients:
-      - name: worker-pikachu
-      - name: worker-ronflex
-  vault:
-    enabled: false
+      - name: 'worker-pikachu'
+      - name: 'worker-ronflex'
 
 plugins:
   traefik:
     enabled: true
+    log_level: 'DEBUG'
     version: '3.3.1'

@@ -11,7 +11,10 @@ services:
     pre_stop:
       - command: 'service consul stop'
     environment:
+      MINISTACK: 'true'
+      {%- if services.consul.version %}
       CONSUL_VERSION: '{{ services.consul.version }}'
+      {%- endif %}
     {%- if plugins.traefik.enabled %}
     labels:
       - 'traefik.enable=true'

@@ -6,6 +6,9 @@ consul {}
 server {
   enabled = true
   bootstrap_expect = {{ services.nomad.replicas }}
+  default_scheduler_config {
+    memory_oversubscription_enabled = true
+  }
   {%- if not services.consul.enabled %}
   server_join {
     retry_max = 3

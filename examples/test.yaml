@@ -1,0 +1,11 @@
+name: 'hashistack-test'
+datacenter: 'test'
+
+image:
+  repository: 'ghcr.io/gperreymond/hashibase'
+  tag: 'base-1.0.0'
+
+services:
+  nomad:
+    enabled: true
+    replicas: 1
