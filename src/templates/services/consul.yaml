@@ -10,6 +10,12 @@ services:
       - command: 'start-ministack'
     pre_stop:
       - command: 'service consul stop'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://10.1.0.10{{ i }}:8500/v1/status/leader"]
+      interval: 30s
+      retries: 3
+      start_period: 10s
+      timeout: 5s
     environment:
       MINISTACK: 'true'
       {%- if services.consul.version %}

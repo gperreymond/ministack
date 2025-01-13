@@ -8,7 +8,7 @@ use std::path::Path;
 use std::process::{Command as ShellCommand, Stdio};
 use tera::{Context, Tera};
 
-// Embed the "templates" directory into the binary
+/// Embed the "templates" directory into the binary
 static TEMPLATES_DIR: Dir = include_dir!("src/templates");
 
 // Default output directory
