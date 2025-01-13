@@ -5,7 +5,7 @@ set -e
 # Function to fetch the latest release version from GitHub
 get_latest_release() {
     curl --silent "https://api.github.com/repos/gperreymond/ministack/releases/latest" |
-    grep -Po '"tag_name": "\K.*?(?=")'
+    sed -n 's/.*"tag_name": "\([^"]*\)".*/\1/p'
 }
 
 # Detect the operating system
@@ -34,6 +34,10 @@ sudo chmod +x /usr/local/bin/ministack
 
 # Verify the installation
 echo "[INFO] verifying installation..."
-ministack --version
-
-echo "[INFO] installation completed successfully."
+if command -v ministack > /dev/null; then
+    ministack --version
+    echo "[INFO] installation completed successfully."
+else
+    echo "[ERROR] ministack command not found. Installation failed."
+    exit 1
+fi
