@@ -25,7 +25,7 @@ services:
       - '--providers.consulcatalog.endpoint.datacenter={{ datacenter }}'
       - '--providers.consulcatalog.exposedByDefault=false'
       - '--providers.consulcatalog.connectAware=true'
-      - '--providers.consulcatalog.connectByDefault=true'
+      - '--providers.consulcatalog.connectByDefault=false'
       - '--providers.consulcatalog.refreshInterval=30s'
       {%- endif %}
       - '--entryPoints.web.address=:80'

@@ -1,44 +1,26 @@
-job "hello-world" {
+job "hello-world-native" {
   datacenters = ["*"]
   constraint {
     attribute = "${attr.unique.hostname}"
-    value     = "worker-ronflex"
+    value     = "worker-pikachu"
   }
   group "server" {
-    count = 2
+    count = 1
     network {
       mode = "bridge"
-      port "envoy_metrics" { to = "9102" }
+      port "http" {
+        to = 6000
+      }
     }
     service {
       provider = "consul"
-      name     = "hello-world-port-http"
-      port     = "6000"
-      meta {
-        envoy_metrics_port = "${NOMAD_HOST_PORT_envoy_metrics}"
-      }
+      name     = "hello-world-native-port-http"
+      port     = "http"
       connect {
-        sidecar_service {
-          proxy {
-            config {
-              envoy_prometheus_bind_addr = "0.0.0.0:9102"
-            }
-          }
-        }
-        sidecar_task {
-          config {
-            auth_soft_fail = true
-          }
-          resources {
-            cpu = 100
-            memory = 32
-            memory_max = 128
-          }
-        }
+        native = true
       }
       check {
-        expose   = true
-        name     = "hello-world-health"
+        name     = "hello-world-native-health"
         type = "http"
         path = "/"
         interval = "10s"
@@ -46,9 +28,10 @@ job "hello-world" {
       }
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.hello-world.rule=Host(`hello-world.docker.localhost`)",
-        "traefik.http.routers.hello-world.entrypoints=web",
-        "traefik.http.services.hello-world.loadbalancer.passhostheader=true"
+        "traefik.http.routers.hello-world-native.rule=Host(`hello-world-native.docker.localhost`)",
+        "traefik.http.routers.hello-world-native.entrypoints=web",
+        "traefik.http.services.hello-world-native.loadbalancer.passhostheader=true",
+        "traefik.http.services.hello-world-native.loadbalancer.server.scheme=http",
       ]
     }
     task "web" {
@@ -58,10 +41,12 @@ job "hello-world" {
         privileged = true
         command    = "httpd"
         args       = ["-v", "-f", "-p", "6000", "-h", "/local"]
+        ports = ["http"]
       }
       template {
         data        = <<-EOF
 <h1>Hello, Nomad!</h1>
+<h3>service provider: consul (connect native)</h3>
 <ul>
     <li>Task: {{env "NOMAD_TASK_NAME"}}</li>
     <li>Group: {{env "NOMAD_GROUP_NAME"}}</li>
