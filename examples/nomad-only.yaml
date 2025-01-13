@@ -11,7 +11,7 @@ services:
     version: '1.9.4'
     replicas: 3
     clients:
-      - name: worker-rondoudou
+      - name: 'worker-rondoudou'
 
 plugins:
   traefik:

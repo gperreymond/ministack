@@ -61,13 +61,15 @@ services:
     replicas: 1
     # not mandatory
     clients:
-      - name: worker-pikachu
-      - name: worker-ronflex
+      - name: 'worker-pikachu'
+      - name: 'worker-ronflex'
 
 # nothing mandatory here
 plugins:
   traefik:
     enabled: true
+    # not mandatory, default is "INFO"
+    log_level: 'RACE|DEBUG|INFO|WARN|ERROR|FATAL|PANIC'
     # if enabled is true, version is mandatory, only 3.x.x
     version: '3.3.1'
 ```

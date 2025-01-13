@@ -5,21 +5,40 @@ job "hello-world" {
     value     = "worker-ronflex"
   }
   group "server" {
-    count = 1
+    count = 2
     network {
       mode = "bridge"
-      port "http" {
-        to = 6000
-      }
+      port "envoy_metrics" { to = "9102" }
     }
     service {
       provider = "consul"
       name     = "hello-world-port-http"
-      port     = "http"
+      port     = "6000"
+      meta {
+        envoy_metrics_port = "${NOMAD_HOST_PORT_envoy_metrics}"
+      }
       connect {
-        sidecar_service {}
+        sidecar_service {
+          proxy {
+            config {
+              envoy_prometheus_bind_addr = "0.0.0.0:9102"
+            }
+          }
+        }
+        sidecar_task {
+          config {
+            auth_soft_fail = true
+          }
+          resources {
+            cpu = 100
+            memory = 32
+            memory_max = 128
+          }
+        }
       }
       check {
+        expose   = true
+        name     = "hello-world-health"
         type = "http"
         path = "/"
         interval = "10s"
@@ -29,7 +48,7 @@ job "hello-world" {
         "traefik.enable=true",
         "traefik.http.routers.hello-world.rule=Host(`hello-world.docker.localhost`)",
         "traefik.http.routers.hello-world.entrypoints=web",
-        "traefik.http.services.hello-world.loadbalancer.passhostheader=true",
+        "traefik.http.services.hello-world.loadbalancer.passhostheader=true"
       ]
     }
     task "web" {
@@ -39,7 +58,6 @@ job "hello-world" {
         privileged = true
         command    = "httpd"
         args       = ["-v", "-f", "-p", "6000", "-h", "/local"]
-        ports      = ["http"]
       }
       template {
         data        = <<-EOF
@@ -53,8 +71,9 @@ EOF
         destination = "local/index.html"
       }
       resources {
-        cpu    = 50
+        cpu = 50
         memory = 64
+        memory_max = 128
       }
     }
   }
