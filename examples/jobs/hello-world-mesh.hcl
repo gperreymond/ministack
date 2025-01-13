@@ -46,6 +46,7 @@ job "hello-world-mesh" {
       }
       tags = [
         "traefik.enable=true",
+        "traefik.consulcatalog.connect=true",
         "traefik.http.routers.hello-world-mesh.rule=Host(`hello-world-mesh.docker.localhost`)",
         "traefik.http.routers.hello-world-mesh.entrypoints=web",
         "traefik.http.services.hello-world-mesh.loadbalancer.passhostheader=true",

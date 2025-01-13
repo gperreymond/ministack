@@ -120,6 +120,24 @@ You will find 3 kinds of nomad jobs in __examples/jobs__:
 
 > Don't forget to activate in consul web, a global "intention allowing all to all"
 
+```sh
+$ docker stats
+```
+![Docker Stats](images/docker-stats.png)
+
+```sh
+$ docker exec -it worker-ronflex docker ps
+```
+```txt
+CONTAINER ID   IMAGE                             COMMAND                  CREATED          STATUS          PORTS     NAMES
+e55be0a05ac3   busybox:1                         "httpd -v -f -p 6000…"   10 minutes ago   Up 10 minutes             web-86713971-376c-8ea4-cbc3-e31833953fe4
+f1a2aad48a86   busybox:1                         "httpd -v -f -p 6000…"   10 minutes ago   Up 10 minutes             web-b450e015-627f-0ba1-72b0-427b0ff37da3
+2bd4e6d176f0   envoyproxy/envoy:v1.31.2          "/docker-entrypoint.…"   10 minutes ago   Up 10 minutes             connect-proxy-hello-world-mesh-port-http-86713971-376c-8ea4-cbc3-e31833953fe4
+c65140d50003   envoyproxy/envoy:v1.31.2          "/docker-entrypoint.…"   10 minutes ago   Up 10 minutes             connect-proxy-hello-world-mesh-port-http-b450e015-627f-0ba1-72b0-427b0ff37da3
+feb099f4b2e7   registry.k8s.io/pause-amd64:3.3   "/pause"                 10 minutes ago   Up 10 minutes             nomad_init_b450e015-627f-0ba1-72b0-427b0ff37da3
+692cb23a48b3   registry.k8s.io/pause-amd64:3.3   "/pause"                 10 minutes ago   Up 10 minutes             nomad_init_86713971-376c-8ea4-cbc3-e31833953fe4
+```
+
 ## Customize your own configurations for nomad, consul and/or vault
 
 ...
