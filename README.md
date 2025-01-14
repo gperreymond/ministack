@@ -47,9 +47,7 @@ services:
 plugins:
   traefik:
     enabled: true
-    
     log_level: 'RACE|DEBUG|INFO|WARN|ERROR|FATAL|PANIC' # default = "INFO"
-    
     version: 'x.x.x' # default = "3.3.1"
   prometheus:
     enabled: true
