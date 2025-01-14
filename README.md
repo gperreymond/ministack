@@ -103,7 +103,7 @@ You will find 3 kinds of nomad jobs in __examples/jobs__:
 ```sh
 $ docker stats
 ```
-![Docker Stats](images/docker-stats.png)
+![Docker Stats](images/docker-stats-1.png)
 
 ```sh
 $ docker exec -it worker-ronflex docker ps
