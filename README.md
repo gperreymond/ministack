@@ -61,11 +61,6 @@ Warnings:
 * stop a cluster before starting another one.
 * all data will persist.
 
-Common urls:
-* http://traefik.docker.localhost/
-* http://nomad.docker.localhost/
-* http://consul.docker.localhost/
-
 ### Cluster mode "nomad only"
 
 __Configuration__
@@ -93,6 +88,12 @@ $ ministack --config examples/nomad-with-consul.yaml --start
 # stop cluster
 $ ministack --config examples/nomad-with-consul.yaml --stop
 ```
+
+Common urls:
+* http://traefik.docker.localhost/
+* http://nomad.docker.localhost/
+* http://consul.docker.localhost/
+* http://prometheus.docker.localhost/
 
 You will find 3 kinds of nomad jobs in __examples/jobs__:
 * one with service provider nomad
