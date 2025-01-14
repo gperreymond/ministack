@@ -17,7 +17,7 @@ const OUTPUT_DIR: &str = "/tmp/ministack";
 fn main() {
     // Define the CLI arguments
     let matches = Command::new("Manage hashistack with only one binary.")
-        .version("1.0.3")
+        .version("1.1.0")
         .author("Gilles Perreymond <gperreymond@gmail.com>")
         .about("Manage hashistack with only one binary.")
         .arg(
@@ -179,7 +179,7 @@ fn render_template(template_content: &str, data: &HashMap<String, Value>) -> Str
     for (key, value) in data {
         context.insert(key, &value);
     }
-
+    // println!("{}", template_content);
     tera.render("template", &context)
         .unwrap_or_else(|e| panic!("Failed to render template: {}", e))
 }

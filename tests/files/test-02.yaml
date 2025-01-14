@@ -1,0 +1,7 @@
+name: 'hashistack'
+datacenter: 'test'
+
+services:
+  consul:
+    enabled: true
+    bootstrap_expect: 5

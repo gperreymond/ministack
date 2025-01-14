@@ -1,20 +1,11 @@
 name: 'hashistack-dev'
 datacenter: 'europe-paris'
-log_level: 'debug'
-
-image:
-  repository: 'ghcr.io/gperreymond/hashibase'
-  tag: 'base-1.0.0'
 
 services:
   consul:
     enabled: true
-    version: '1.20.1'
-    replicas: 1
   nomad:
     enabled: true
-    version: '1.9.4'
-    replicas: 1
     clients:
       - name: 'worker-pikachu'
       - name: 'worker-ronflex'
@@ -23,4 +14,3 @@ plugins:
   traefik:
     enabled: true
     log_level: 'DEBUG'
-    version: '3.3.1'

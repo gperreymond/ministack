@@ -25,46 +25,36 @@ $ curl -fsSL https://raw.githubusercontent.com/gperreymond/ministack/main/instal
 name: 'the cluster name'
 # mandatory
 datacenter: 'datacenter name used for nomad/consul'
-# not mandatory, default is "info"
-log_level: 'trace|debug|info|warn|error'
 
-# mandatory
-# for now we have only one docker image
-image:
-  repository: 'ghcr.io/gperreymond/hashibase'
-  tag: 'base-1.0.0'
+hashibase:
+  version: 'x.x.x' # default = "base-1.0.0"
 
-# nothing mandatory here
 services:
   consul:
     enabled: true
-    # if enabled is true, version is not mandatory
-    # default version will be "1.20.1"
-    version: 'x.x.x'
-    # if enabled is true, mandatory
-    # it will be => bootstrap_expect
-    replicas: 1
+    version: 'x.x.x' # default = "1.20.1"
+    log_level: 'trace|debug|info|warn|error' # default = "info"
+    bootstrap_expect: 1 # default = 1
   nomad:
     enabled: true
-    # if enabled is true, version is not mandatory
-    # default version will be "1.9.4"
-    version: 'x.x.x'
-    # if enabled is true, mandatory
-    # it will be => bootstrap_expect
-    replicas: 1
-    # not mandatory
-    clients:
+    version: 'x.x.x' # default = "1.9.4"
+    log_level: 'trace|debug|info|warn|error' # default = "info"
+    bootstrap_expect: 1 # default = 1
+    clients: # default = []
       - name: 'worker-pikachu'
       - name: 'worker-ronflex'
 
-# nothing mandatory here
 plugins:
   traefik:
     enabled: true
-    # not mandatory, default is "INFO"
-    log_level: 'RACE|DEBUG|INFO|WARN|ERROR|FATAL|PANIC'
-    # if enabled is true, version is mandatory, only 3.x.x
-    version: '3.3.1'
+    
+    log_level: 'RACE|DEBUG|INFO|WARN|ERROR|FATAL|PANIC' # default = "INFO"
+    
+    version: 'x.x.x' # default = "3.3.1"
+  prometheus:
+    enabled: true
+    log_level: 'debug|info' # default = "info"
+    version: 'x.x.x'  # default = "2.55.1"
 ```
 
 ## Some examples

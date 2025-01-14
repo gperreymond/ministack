@@ -1,8 +1,17 @@
+{%- set consul_replicas = 1 -%}
+{%- if services.consul.bootstrap_expect -%}
+{%- set consul_replicas = services.consul.bootstrap_expect -%}
+{%- endif -%}
+
 {%- if services.consul.enabled %}
+{%- set version = "1.0.0" -%}
+{%- if hashibase.version -%}
+{%- set version = hashibase.version -%}
+{%- endif -%}
 services:
-  {%- for i in range(start=1, end=services.consul.replicas+1) %}
+  {%- for i in range(start=1, end=consul_replicas+1) %}
   consul-server-{{ i }}:
-    image: '{{ image.repository }}:{{ image.tag }}'
+    image: 'ghcr.io/gperreymond/hashibase:base-{{ version }}'
     container_name: 'consul-server-{{ i }}'
     hostname: 'consul-server-{{ i }}'
     privileged: 'true'
@@ -38,7 +47,7 @@ services:
   {%- endfor %}
 
 volumes:
-  {%- for i in range(start=1, end=services.consul.replicas+1) %}
+  {%- for i in range(start=1, end=consul_replicas+1) %}
   consul_server_{{ i }}_data: {}
   {%- endfor %}
 {%- endif %}

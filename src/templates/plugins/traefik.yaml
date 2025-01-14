@@ -1,7 +1,21 @@
+{%- set nomad_replicas = 1 -%}
+{%- if services.nomad.bootstrap_expect -%}
+{%- set nomad_replicas = services.nomad.bootstrap_expect -%}
+{%- endif -%}
+
+{%- set consul_replicas = 1 -%}
+{%- if services.consul.bootstrap_expect -%}
+{%- set consul_replicas = services.consul.bootstrap_expect -%}
+{%- endif -%}
+
 {%- if plugins.traefik.enabled %}
+{%- set version = "3.3.1" -%}
+{%- if plugins.traefik.version -%}
+{%- set version = plugins.traefik.version -%}
+{%- endif -%}
 services:
   traefik:
-    image: 'traefik:v{{ plugins.traefik.version }}'
+    image: 'traefik:v{{ version }}'
     container_name: 'traefik'
     command:
       - '--log.level={%- if plugins.traefik.log_level -%}{{ plugins.traefik.log_level }}{%- else -%}INFO{%- endif -%}'
@@ -48,13 +62,13 @@ services:
     {%- if services.nomad.enabled or services.consul.enabled %}
     depends_on:
       {%- if services.nomad.enabled %}
-      {%- for i in range(start=1, end=services.nomad.replicas+1) %}
+      {%- for i in range(start=1, end=nomad_replicas+1) %}
       'nomad-server-{{ i }}':
         condition: service_healthy
       {%- endfor %}
       {%- endif %}
       {%- if services.consul.enabled %}
-      {%- for i in range(start=1, end=services.consul.replicas+1) %}
+      {%- for i in range(start=1, end=consul_replicas+1) %}
       'consul-server-{{ i }}':
         condition: service_healthy
       {%- endfor %}

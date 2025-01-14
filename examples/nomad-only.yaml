@@ -1,19 +1,13 @@
 name: 'hashistack-single'
 datacenter: 'local'
 
-image:
-  repository: 'ghcr.io/gperreymond/hashibase'
-  tag: 'base-1.0.0'
-
 services:
   nomad:
     enabled: true
-    version: '1.9.4'
-    replicas: 3
+    bootstrap_expect: 3
     clients:
       - name: 'worker-rondoudou'
 
 plugins:
   traefik:
     enabled: true
-    version: '3.2.3'

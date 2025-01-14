@@ -1,0 +1,17 @@
+name: 'hashistack'
+datacenter: 'test'
+
+services:
+  consul:
+    enabled: true
+  nomad:
+    enabled: true
+    clients:
+      - name: worker-001
+      - name: worker-002
+
+plugins:
+  traefik:
+    enabled: true
+  prometheus:
+    enabled: true
