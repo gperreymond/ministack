@@ -1,0 +1,10 @@
+name: 'hashistack'
+datacenter: 'test'
+
+services:
+  nomad:
+    enabled: true
+    bootstrap_expect: 3
+    clients:
+      - name: worker-001
+      - name: worker-002

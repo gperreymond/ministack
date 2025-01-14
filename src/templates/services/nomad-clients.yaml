@@ -1,11 +1,11 @@
 {%- set nomad_replicas = 1 -%}
-{%- if services.nomad.replicas -%}
-{%- set nomad_replicas = services.nomad.replicas -%}
+{%- if services.nomad.bootstrap_expect -%}
+{%- set nomad_replicas = services.nomad.bootstrap_expect -%}
 {%- endif -%}
 
 {%- set consul_replicas = 1 -%}
-{%- if services.consul.replicas -%}
-{%- set consul_replicas = services.consul.replicas -%}
+{%- if services.consul.bootstrap_expect -%}
+{%- set consul_replicas = services.consul.bootstrap_expect -%}
 {%- endif -%}
 
 {%- if services.nomad.enabled and services.nomad.clients %}

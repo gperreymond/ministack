@@ -27,58 +27,34 @@ name: 'the cluster name'
 datacenter: 'datacenter name used for nomad/consul'
 
 hashibase:
-  # not mandatory
-  # default = "base-1.0.0"
-  version: 'x.x.x'
+  version: 'x.x.x' # default = "base-1.0.0"
 
-# nothing mandatory here
 services:
   consul:
     enabled: true
-    # if enabled is true, not mandatory
-    # default = "1.20.1"
-    version: 'x.x.x'
-    # if enabled is true, not mandatory
-    # default = "info"
-    log_level: 'trace|debug|info|warn|error'
-    # if enabled is true, not mandatory
-    # default = 1
-    # it will be bootstrap_expect, see doc on clustering consul servers
-    replicas: 1
+    version: 'x.x.x' # default = "1.20.1"
+    log_level: 'trace|debug|info|warn|error' # default = "info"
+    bootstrap_expect: 1 # default = 1
   nomad:
     enabled: true
-    # if enabled is true, not mandatory
-    # default = "1.9.4"
-    version: 'x.x.x'
-    # if enabled is true, not mandatory
-    # default = "info"
-    log_level: 'trace|debug|info|warn|error'
-    # if enabled is true, not mandatory
-    # default = 1
-    # it will be bootstrap_expect, see doc on clustering nomad servers
-    replicas: 1
-    # if enabled is true, not mandatory
-    # default = []
-    clients:
+    version: 'x.x.x' # default = "1.9.4"
+    log_level: 'trace|debug|info|warn|error' # default = "info"
+    bootstrap_expect: 1 # default = 1
+    clients: # default = []
       - name: 'worker-pikachu'
       - name: 'worker-ronflex'
 
-# nothing mandatory here
 plugins:
   traefik:
     enabled: true
-    # not mandatory, default is "INFO"
-    log_level: 'RACE|DEBUG|INFO|WARN|ERROR|FATAL|PANIC'
-    # if enabled is true, version is not mandatory
-    # default version will be "3.3.1"
-    version: 'x.x.x'
+    
+    log_level: 'RACE|DEBUG|INFO|WARN|ERROR|FATAL|PANIC' # default = "INFO"
+    
+    version: 'x.x.x' # default = "3.3.1"
   prometheus:
     enabled: true
-    # not mandatory, default is "info"
-    log_level: 'debug|info'
-    # if enabled is true, version is not mandatory
-    # default version will be "2.55.1"
-    version: 'x.x.x'
+    log_level: 'debug|info' # default = "info"
+    version: 'x.x.x'  # default = "2.55.1"
 ```
 
 ## Some examples

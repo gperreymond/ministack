@@ -1,7 +1,7 @@
 {%- if services.consul.enabled %}
 {%- set replicas = 1 -%}
-{%- if services.consul.replicas -%}
-{%- set replicas = services.consul.replicas -%}
+{%- if services.consul.bootstrap_expect -%}
+{%- set replicas = services.consul.bootstrap_expect -%}
 {%- endif -%}
 server = true
 bootstrap_expect = {{ replicas }}

@@ -1,7 +1,7 @@
 name: '{{ name }}'
 
 include:
-  - 'empty.yaml'
+  - 'hooks.yaml'
   {%- if plugins.traefik.enabled %}
   - 'plugins/traefik.yaml'
   {%- endif %}

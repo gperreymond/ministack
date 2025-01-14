@@ -1,7 +1,7 @@
 {%- if services.nomad.enabled %}
 {%- set replicas = 1 -%}
-{%- if services.nomad.replicas -%}
-{%- set replicas = services.nomad.replicas -%}
+{%- if services.nomad.bootstrap_expect -%}
+{%- set replicas = services.nomad.bootstrap_expect -%}
 {%- endif -%}
 {%- if services.consul.enabled %}
 consul {}

@@ -4,7 +4,7 @@ datacenter: 'local'
 services:
   nomad:
     enabled: true
-    replicas: 3
+    bootstrap_expect: 3
     clients:
       - name: 'worker-rondoudou'
 

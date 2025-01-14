@@ -1,6 +1,6 @@
 {%- set consul_replicas = 1 -%}
-{%- if services.consul.replicas -%}
-{%- set consul_replicas = services.consul.replicas -%}
+{%- if services.consul.bootstrap_expect -%}
+{%- set consul_replicas = services.consul.bootstrap_expect -%}
 {%- endif -%}
 
 {%- if services.consul.enabled %}
