@@ -1,8 +1,26 @@
+{%- set nomad_replicas = 1 -%}
+{%- if services.nomad.replicas -%}
+{%- set nomad_replicas = services.nomad.replicas -%}
+{%- endif -%}
+
+{%- set consul_replicas = 1 -%}
+{%- if services.consul.replicas -%}
+{%- set consul_replicas = services.consul.replicas -%}
+{%- endif -%}
+
 {%- if services.nomad.enabled %}
+{%- set version = "1.0.0" -%}
+{%- if hashibase.version -%}
+{%- set version = hashibase.version -%}
+{%- endif -%}
 services:
-  {%- for i in range(start=1, end=services.nomad.replicas+1) %}
+  {%- set replicas = 1 -%}
+  {%- if services.nomad.replicas -%}
+  {%- set replicas = services.nomad.replicas -%}
+  {%- endif -%}
+  {%- for i in range(start=1, end=replicas+1) %}
   nomad-server-{{ i }}:
-    image: '{{ image.repository }}:{{ image.tag }}'
+    image: 'ghcr.io/gperreymond/hashibase:base-{{ version }}'
     container_name: 'nomad-server-{{ i }}'
     hostname: 'nomad-server-{{ i }}'
     privileged: 'true'
@@ -48,7 +66,7 @@ services:
         ipv4_address: '10.1.0.20{{ i }}'
     {%- if services.consul.enabled %}
     depends_on:
-      {%- for i in range(start=1, end=services.consul.replicas+1) %}
+      {%- for i in range(start=1, end=consul_replicas+1) %}
       'consul-server-{{ i }}':
         condition: service_healthy
       {%- endfor %}
@@ -56,7 +74,7 @@ services:
   {%- endfor %}
 
 volumes:
-  {%- for i in range(start=1, end=services.nomad.replicas+1) %}
+  {%- for i in range(start=1, end=nomad_replicas+1) %}
   nomad_server_{{ i }}_data: {}
   {%- if services.consul.enabled %}
   nomad_server_{{ i }}_consul_client_data: {}

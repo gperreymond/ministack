@@ -1,9 +1,12 @@
 name: '{{ name }}'
 
 include:
-  - empty.yaml
+  - 'empty.yaml'
   {%- if plugins.traefik.enabled %}
   - 'plugins/traefik.yaml'
+  {%- endif %}
+  {%- if plugins.prometheus.enabled %}
+  - 'plugins/prometheus.yaml'
   {%- endif %}
   {%- if services.consul.enabled %}
   - 'services/consul.yaml'

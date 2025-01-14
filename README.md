@@ -25,34 +25,40 @@ $ curl -fsSL https://raw.githubusercontent.com/gperreymond/ministack/main/instal
 name: 'the cluster name'
 # mandatory
 datacenter: 'datacenter name used for nomad/consul'
-# not mandatory, default is "info"
-log_level: 'trace|debug|info|warn|error'
 
-# mandatory
-# for now we have only one docker image
-image:
-  repository: 'ghcr.io/gperreymond/hashibase'
-  tag: 'base-1.0.0'
+hashibase:
+  # not mandatory
+  # default = "base-1.0.0"
+  version: 'x.x.x'
 
 # nothing mandatory here
 services:
   consul:
     enabled: true
-    # if enabled is true, version is not mandatory
-    # default version will be "1.20.1"
+    # if enabled is true, not mandatory
+    # default = "1.20.1"
     version: 'x.x.x'
-    # if enabled is true, mandatory
-    # it will be => bootstrap_expect
+    # if enabled is true, not mandatory
+    # default = "info"
+    log_level: 'trace|debug|info|warn|error'
+    # if enabled is true, not mandatory
+    # default = 1
+    # it will be bootstrap_expect, see doc on clustering consul servers
     replicas: 1
   nomad:
     enabled: true
-    # if enabled is true, version is not mandatory
-    # default version will be "1.9.4"
+    # if enabled is true, not mandatory
+    # default = "1.9.4"
     version: 'x.x.x'
-    # if enabled is true, mandatory
-    # it will be => bootstrap_expect
+    # if enabled is true, not mandatory
+    # default = "info"
+    log_level: 'trace|debug|info|warn|error'
+    # if enabled is true, not mandatory
+    # default = 1
+    # it will be bootstrap_expect, see doc on clustering nomad servers
     replicas: 1
-    # not mandatory
+    # if enabled is true, not mandatory
+    # default = []
     clients:
       - name: 'worker-pikachu'
       - name: 'worker-ronflex'
@@ -63,8 +69,16 @@ plugins:
     enabled: true
     # not mandatory, default is "INFO"
     log_level: 'RACE|DEBUG|INFO|WARN|ERROR|FATAL|PANIC'
-    # if enabled is true, version is mandatory, only 3.x.x
-    version: '3.3.1'
+    # if enabled is true, version is not mandatory
+    # default version will be "3.3.1"
+    version: 'x.x.x'
+  prometheus:
+    enabled: true
+    # not mandatory, default is "info"
+    log_level: 'debug|info'
+    # if enabled is true, version is not mandatory
+    # default version will be "2.55.1"
+    version: 'x.x.x'
 ```
 
 ## Some examples

@@ -1,3 +1,13 @@
+{%- set nomad_replicas = 1 -%}
+{%- if services.nomad.replicas -%}
+{%- set nomad_replicas = services.nomad.replicas -%}
+{%- endif -%}
+
+{%- set consul_replicas = 1 -%}
+{%- if services.consul.replicas -%}
+{%- set consul_replicas = services.consul.replicas -%}
+{%- endif -%}
+
 {%- if services.nomad.enabled or services.consul.enabled %}
 services:
   {%- if services.nomad.enabled %}
@@ -15,7 +25,7 @@ services:
     networks:
       ministack: {}
     depends_on:
-      {%- for i in range(start=1, end=services.nomad.replicas+1) %}
+      {%- for i in range(start=1, end=nomad_replicas+1) %}
       'nomad-server-{{ i }}':
         condition: service_healthy
       {%- endfor %}
@@ -30,7 +40,9 @@ services:
         apk add curl > /dev/null 2>&1
         echo ""
         bash /scripts/consul/01-apply-default-intension.sh
+        {%- if plugins.traefik.enabled %}
         bash /scripts/consul/02-register-traefik.sh
+        {%- endif %}
         sleep 60
       "
     volumes:
@@ -38,7 +50,7 @@ services:
     networks:
       ministack: {}
     depends_on:
-      {%- for i in range(start=1, end=services.consul.replicas+1) %}
+      {%- for i in range(start=1, end=consul_replicas+1) %}
       'consul-server-{{ i }}':
         condition: service_healthy
       {%- endfor %}

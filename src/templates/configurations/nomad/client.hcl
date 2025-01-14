@@ -1,4 +1,8 @@
 {%- if services.nomad.enabled %}
+{%- set replicas = 1 -%}
+{%- if services.nomad.replicas -%}
+{%- set replicas = services.nomad.replicas -%}
+{%- endif -%}
 server {
   enabled = false
 }
@@ -12,7 +16,7 @@ client {
   network_interface = "{{ `{{ GetPrivateInterfaces | include \"network\" \"10.1.0.0/24\" | attr \"name\" }}` }}"
   {%- if not services.consul.enabled %}
   servers = [
-    {%- for i in range(start=1, end=services.nomad.replicas+1) %}
+    {%- for i in range(start=1, end=replicas+1) %}
     "nomad-server-{{ i }}:4647",
     {%- endfor %}
   ]

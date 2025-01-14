@@ -179,7 +179,7 @@ fn render_template(template_content: &str, data: &HashMap<String, Value>) -> Str
     for (key, value) in data {
         context.insert(key, &value);
     }
-
+    // println!("{}", template_content);
     tera.render("template", &context)
         .unwrap_or_else(|e| panic!("Failed to render template: {}", e))
 }

@@ -1,7 +1,15 @@
 {%- if services.consul.enabled %}
+{%- set replicas = 1 -%}
+{%- if services.consul.replicas -%}
+{%- set replicas = services.consul.replicas -%}
+{%- endif -%}
+{%- set log_level = "info" -%}
+{%- if services.consul.log_level -%}
+{%- set log_level = services.consul.log_level -%}
+{%- endif -%}
 datacenter = "{{ datacenter }}"
 data_dir = "/consul/data"
-log_level = "{%- if log_level -%}{{ log_level }}{%- else -%}info{%- endif -%}"
+log_level = "{{ log_level }}"
 log_json = true
 
 ports {
@@ -33,7 +41,7 @@ dns_config {
 }
 
 retry_join = [
-  {%- for i in range(start=1, end=services.consul.replicas+1) %}
+  {%- for i in range(start=1, end=replicas+1) %}
   "consul-server-{{ i }}",
   {%- endfor %}
 ]

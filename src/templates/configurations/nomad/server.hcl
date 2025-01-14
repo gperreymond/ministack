@@ -1,11 +1,15 @@
 {%- if services.nomad.enabled %}
+{%- set replicas = 1 -%}
+{%- if services.nomad.replicas -%}
+{%- set replicas = services.nomad.replicas -%}
+{%- endif -%}
 {%- if services.consul.enabled %}
 consul {}
 {%- endif %}
 
 server {
   enabled = true
-  bootstrap_expect = {{ services.nomad.replicas }}
+  bootstrap_expect = {{ replicas }}
   default_scheduler_config {
     memory_oversubscription_enabled = true
   }
@@ -14,7 +18,7 @@ server {
     retry_max = 3
     retry_interval = "15s"
     retry_join = [
-      {%- for i in range(start=1, end=services.nomad.replicas+1) %}
+      {%- for i in range(start=1, end=replicas+1) %}
       "nomad-server-{{ i }}",
       {%- endfor %}
     ]
