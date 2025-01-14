@@ -13,4 +13,5 @@ services:
 plugins:
   traefik:
     enabled: true
-    log_level: 'DEBUG'
+  prometheus:
+    enabled: true
