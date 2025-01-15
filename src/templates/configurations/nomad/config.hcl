@@ -11,5 +11,11 @@ log_json = true
 leave_on_interrupt = true
 leave_on_terminate = true
 
+telemetry {
+  prometheus_metrics = true
+  publish_allocation_metrics = true
+  publish_node_metrics = true
+}
+
 bind_addr  = "{{ `{{ GetPrivateInterfaces | include \"network\" \"10.1.0.0/24\" | attr \"address\" }}` }}"
 {%- endif %}

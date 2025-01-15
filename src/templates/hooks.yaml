@@ -10,9 +10,27 @@
 
 {%- if 
   services.nomad.enabled or 
-  services.consul.enabled
+  services.consul.enabled or
+  plugins.prometheus.enabled
 %}
 services:
+  {%- if plugins.prometheus.enabled %}
+  prometheus-reloader:
+    image: 'bash:5.2.37'
+    container_name: 'prometheus-reloader'
+    restart: unless-stopped
+    command: |
+      bash -c "
+        apk add curl > /dev/null 2>&1
+        curl -X POST http://prometheus:9090/-/reload
+        sleep 60
+      "
+    networks:
+      ministack: {}
+    depends_on:
+      prometheus:
+        condition: service_healthy
+  {%- endif %}
   {%- if services.nomad.enabled %}
   post-start-nomad:
     image: 'bash:5.2.37'

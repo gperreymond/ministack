@@ -8,9 +8,7 @@ job "hello-world-native" {
     count = 1
     network {
       mode = "bridge"
-      port "http" {
-        to = 6000
-      }
+      port "http" { to = 6000 }
     }
     service {
       provider = "consul"
