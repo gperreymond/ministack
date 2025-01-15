@@ -34,7 +34,9 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://10.1.0.20{{ i }}:4646/v1/status/leader"]
       interval: 30s
-      retries: 5
+      retries: 3
+      start_period: 10s
+      timeout: 5s
     environment:
       MINISTACK: 'true'
       {%- if services.nomad.version %}

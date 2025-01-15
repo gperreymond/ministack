@@ -17,13 +17,19 @@ services:
       - '--storage.tsdb.retention.time=6h'
       - '--storage.tsdb.retention.size=4GB'  
       - '--storage.tsdb.max-block-duration=2h' 
-      - '--storage.tsdb.min-block-duration=2h' 
+      - '--storage.tsdb.min-block-duration=2h'
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/ready || exit 1"]
+      interval: 30s
+      retries: 3
+      start_period: 10s
+      timeout: 5s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.prometheus.rule=Host(`prometheus.docker.localhost`)"
     volumes:
       - 'prometheus_data:/prometheus'
-      - "../configurations/prometheus:/etc/prometheus"
+      - "../configurations/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml"
     networks:
       ministack:
         ipv4_address: '10.1.0.11'

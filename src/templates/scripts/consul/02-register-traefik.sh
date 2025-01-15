@@ -23,7 +23,7 @@ curl  --silent --request PUT \
         \"Address\": \"$SERVICE_ADDRESS\",
         \"Port\": $SERVICE_PORT,
         \"Connect\": {
-          \"SidecarService\": {}
+          \"Native\": true
         },
         \"Check\": {
           \"HTTP\": \"$HEALTH_CHECK_URL\",
