@@ -13,5 +13,6 @@ services:
 plugins:
   traefik:
     enabled: true
+    version: '3.3.2'
   prometheus:
     enabled: true
