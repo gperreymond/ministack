@@ -123,7 +123,7 @@ feb099f4b2e7   registry.k8s.io/pause-amd64:3.3   "/pause"                 10 min
 
 ## Customize prometheus
 
-First you need to create the directories:
+First you need to create those directories:
 ```sh
 $ export CLUSTER_NAME=my-cluster-name
 $ mkdir -p $HOME/.ministack/$CLUSTER_NAME/prometheus/scrape_configs
