@@ -19,8 +19,8 @@ job "hello-world-native" {
       }
       check {
         name     = "hello-world-native-health"
-        type = "http"
-        path = "/"
+        type     = "http"
+        path     = "/"
         interval = "10s"
         timeout  = "2s"
       }
@@ -39,7 +39,7 @@ job "hello-world-native" {
         privileged = true
         command    = "httpd"
         args       = ["-v", "-f", "-p", "6000", "-h", "/local"]
-        ports = ["http"]
+        ports      = ["http"]
       }
       template {
         data        = <<-EOF
@@ -54,8 +54,8 @@ EOF
         destination = "local/index.html"
       }
       resources {
-        cpu = 50
-        memory = 64
+        cpu        = 50
+        memory     = 64
         memory_max = 128
       }
     }

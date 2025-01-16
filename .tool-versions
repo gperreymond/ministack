@@ -4,3 +4,4 @@ rust 1.84.0
 nomad 1.9.4
 consul 1.20.2
 vault 1.18.3
+terragrunt 0.71.2

@@ -1,0 +1,20 @@
+{%- if services.consul.enabled %}
+{%- set nomad_replicas = 1 -%}
+{%- if services.nomad.bootstrap_expect -%}
+{%- set nomad_replicas = services.nomad.bootstrap_expect -%}
+{%- endif -%}
+scrape_configs:
+  - job_name: 'nomad-server'
+    honor_timestamps: true
+    metrics_path: '/v1/metrics'
+    scheme: http
+    params: 
+      format: ["prometheus"]  
+    static_configs:
+    - targets:
+      {%- for i in range(start=1, end=nomad_replicas+1) %}
+      - 'nomad-server-{{ i }}:4646'
+      {%- endfor %}
+{%- else %}
+scrape_configs: []
+{%- endif -%}

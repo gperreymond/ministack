@@ -20,9 +20,11 @@ $ curl -fsSL https://raw.githubusercontent.com/gperreymond/ministack/main/instal
 
 ## Cluster configuration details
 
+All default versions, are the minimum versions working with the automatic config files.
+
 ```yaml
 # mandatory
-name: 'the cluster name'
+name: 'my-cluster-name'
 # mandatory
 datacenter: 'datacenter name used for nomad/consul'
 
@@ -52,7 +54,8 @@ plugins:
   prometheus:
     enabled: true
     log_level: 'debug|info' # default = "info"
-    version: 'x.x.x'  # default = "2.55.1"
+    version: 'x.x.x'  # default = "3.1.0"
+    customized: false # default = false (see "customize prometheus" below in the documentation )
 ```
 
 ## Some examples
@@ -95,7 +98,7 @@ Common urls:
 * http://consul.docker.localhost/
 * http://prometheus.docker.localhost/
 
-You will find 3 kinds of nomad jobs in __examples/jobs__:
+You will find 3 kinds of nomad jobs in __examples/hashistack-dev/jobs__:
 * one with service provider nomad
 * one with service provider consul, and connect native "true"
 * one with service provider consul, and connect with sidecar proxy "mesh"
@@ -118,7 +121,28 @@ feb099f4b2e7   registry.k8s.io/pause-amd64:3.3   "/pause"                 10 min
 692cb23a48b3   registry.k8s.io/pause-amd64:3.3   "/pause"                 10 minutes ago   Up 10 minutes             nomad_init_86713971-376c-8ea4-cbc3-e31833953fe4
 ```
 
-## Customize your own configurations for nomad, consul and/or vault
+## Customize prometheus
+
+First you need to create the directories:
+```sh
+$ export CLUSTER_NAME=my-cluster-name
+$ mkdir -p $HOME/.ministack/$CLUSTER_NAME/prometheus/scrape_configs
+$ mkdir -p $HOME/.ministack/$CLUSTER_NAME/prometheus/rules
+```
+
+You can add your own external configs for prometheus by activated "customize: true" in the config file, like that:
+```yaml
+plugins:
+  prometheus:
+    enabled: true
+    customized: true
+```
+
+Now, you can add your onw rules and scrape_configs to thosee directory, see prometheus documentation.
+You will find exemples in __examples/hashistack-dev/prometheus__:
+> Prometheus reloading is automatically done every minute.
+
+## Customize nomad, consul and/or vault
 
 ...
 
@@ -126,4 +150,3 @@ feb099f4b2e7   registry.k8s.io/pause-amd64:3.3   "/pause"                 10 min
 
 * https://romanzipp.com/blog/get-started-with-hashi-nomad-consul
 * https://mrkaran.dev/posts/nomad-networking-explained
-

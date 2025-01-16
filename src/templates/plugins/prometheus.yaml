@@ -1,5 +1,5 @@
 {%- if plugins.prometheus.enabled %}
-{%- set version = "2.55.1" -%}
+{%- set version = "3.1.0" -%}
 {%- if plugins.prometheus.version -%}
 {%- set version = plugins.prometheus.version -%}
 {%- endif -%}
@@ -29,7 +29,11 @@ services:
       - "traefik.http.routers.prometheus.rule=Host(`prometheus.docker.localhost`)"
     volumes:
       - 'prometheus_data:/prometheus'
-      - "../configurations/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml"
+      - '../configurations/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml'
+      - '../configurations/prometheus/scrape_configs:/etc/prometheus/scrape_configs'
+      {%- if plugins.prometheus.customized %}
+      - '$HOME/.ministack/{{ name }}/prometheus:/etc/prometheus/ministack'
+      {%- endif %}
     networks:
       ministack:
         ipv4_address: '10.1.0.11'
