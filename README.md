@@ -150,3 +150,5 @@ You will find exemples in __examples/hashistack-dev/prometheus__:
 
 * https://romanzipp.com/blog/get-started-with-hashi-nomad-consul
 * https://mrkaran.dev/posts/nomad-networking-explained
+* https://last9.io/blog/mastering-prometheus-relabeling-a-comprehensive-guide
+* https://samber.github.io/awesome-prometheus-alerts/rules.html

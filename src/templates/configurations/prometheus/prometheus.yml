@@ -9,6 +9,7 @@ rule_files:
   - '/etc/prometheus/ministack/rules/*.yml'
 
 scrape_config_files:
+  - '/etc/prometheus/scrape_configs/*.yaml'
   - '/etc/prometheus/scrape_configs/*.yml'
   - '/etc/prometheus/ministack/scrape_configs/*.yaml'
   - '/etc/prometheus/ministack/scrape_configs/*.yml'

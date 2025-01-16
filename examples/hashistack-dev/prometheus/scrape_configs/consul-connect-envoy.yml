@@ -15,11 +15,3 @@ scrape_configs:
       regex: (.+)(?::\d+);(\d+)
       replacement: $1:$2
       target_label: __address__
-  - job_name: 'cadvisor-metrics'
-    consul_sd_configs:
-    - server: 'consul-server-1:8500'
-      services: []
-    relabel_configs:
-    - source_labels: ['__meta_consul_tags']
-      regex: '.*,metrics=cadvisor,.*'
-      action: 'keep'
