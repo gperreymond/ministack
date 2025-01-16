@@ -53,7 +53,7 @@ plugins:
     version: 'x.x.x' # default = "3.3.1"
   prometheus:
     enabled: true
-    log_level: 'debug|info' # default = "info"
+    log_level: 'info' # default = "info"
     version: 'x.x.x'  # default = "3.1.0"
     customized: false # default = false (see "customize prometheus" below in the documentation )
 ```
