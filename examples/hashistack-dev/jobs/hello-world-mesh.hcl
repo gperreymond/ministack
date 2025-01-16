@@ -30,8 +30,8 @@ job "hello-world-mesh" {
             auth_soft_fail = true
           }
           resources {
-            cpu = 100
-            memory = 32
+            cpu        = 100
+            memory     = 32
             memory_max = 128
           }
         }
@@ -39,8 +39,8 @@ job "hello-world-mesh" {
       check {
         expose   = true
         name     = "hello-world-mesh-health"
-        type = "http"
-        path = "/"
+        type     = "http"
+        path     = "/"
         interval = "10s"
         timeout  = "2s"
       }
@@ -73,8 +73,8 @@ EOF
         destination = "local/index.html"
       }
       resources {
-        cpu = 50
-        memory = 64
+        cpu        = 50
+        memory     = 64
         memory_max = 128
       }
     }

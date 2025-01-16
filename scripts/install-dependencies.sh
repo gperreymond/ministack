@@ -8,5 +8,6 @@ asdf plugin add rust
 asdf plugin add nomad
 asdf plugin add consul
 asdf plugin add vault
+asdf plugin add terragrunt
 
 asdf install

@@ -1,0 +1,20 @@
+{%- if services.consul.enabled %}
+{%- set consul_replicas = 1 -%}
+{%- if services.consul.bootstrap_expect -%}
+{%- set consul_replicas = services.consul.bootstrap_expect -%}
+{%- endif -%}
+scrape_configs:
+  - job_name: 'consul-server'
+    honor_timestamps: true
+    metrics_path: '/v1/agent/metrics'
+    scheme: http
+    params: 
+      format: ["prometheus"]  
+    static_configs:
+    - targets:
+      {%- for i in range(start=1, end=consul_replicas+1) %}
+      - 'consul-server-{{ i }}:8500'
+      {%- endfor %}
+{%- else %}
+scrape_configs: []
+{%- endif -%}

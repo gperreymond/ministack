@@ -16,3 +16,4 @@ plugins:
     version: '3.3.2'
   prometheus:
     enabled: true
+    customized: true

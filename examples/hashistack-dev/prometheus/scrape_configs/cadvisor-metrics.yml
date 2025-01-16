@@ -1,0 +1,36 @@
+scrape_configs:
+  - job_name: 'cadvisor-metrics'
+    consul_sd_configs:
+    - server: 'consul-server-1:8500'
+      services: []
+    relabel_configs:
+    - source_labels: ['__meta_consul_tags']
+      regex: '.*,metrics=cadvisor,.*'
+      action: 'keep'
+    metric_relabel_configs:
+    - source_labels: [container_label_com_hashicorp_nomad_alloc_id]
+      target_label: nomad_alloc_id
+      action: replace
+      regex: (.*)
+    - source_labels: [container_label_com_hashicorp_nomad_job_name]
+      target_label: nomad_job_name
+      action: replace
+      regex: (.*)
+    - source_labels: [container_label_com_hashicorp_nomad_namespace]
+      target_label: nomad_namespace
+      action: replace
+      regex: (.*)
+    - source_labels: [container_label_com_hashicorp_nomad_node_name]
+      target_label: nomad_node_name
+      action: replace
+      regex: (.*)
+    - source_labels: [container_label_com_hashicorp_nomad_task_group_name]
+      target_label: nomad_task_group_name
+      action: replace
+      regex: (.*)
+    - source_labels: [container_label_com_hashicorp_nomad_task_name]
+      target_label: nomad_task_name
+      action: replace
+      regex: (.*)
+    - action: labeldrop
+      regex: "container_label_com_hashicorp_nomad_.*"
