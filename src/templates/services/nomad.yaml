@@ -32,7 +32,11 @@ services:
       - command: 'service consul stop'
       {%- endif %}
     healthcheck:
+      {%- if services.nomad.customized.tls %}
+      test: ["CMD", "curl", "--insecure", "-f", "https://10.1.0.20{{ i }}:4646/v1/status/leader"]
+      {%- else %}
       test: ["CMD", "curl", "-f", "http://10.1.0.20{{ i }}:4646/v1/status/leader"]
+      {%- endif %}
       interval: 30s
       retries: 3
       start_period: 10s
@@ -51,10 +55,23 @@ services:
       - 'traefik.http.routers.nomad.rule=Host(`nomad.docker.localhost`)'
       - 'traefik.http.routers.nomad.entrypoints=web'
       - 'traefik.http.services.nomad.loadbalancer.server.port=4646'
+      {%- if services.nomad.customized.tls %}
+      - 'traefik.http.services.nomad.loadbalancer.server.scheme=https'
+      - 'traefik.http.services.nomad.loadbalancer.serverstransport=insecure@file'
+      {%- endif %}
     {%- endif %}
     volumes:
       - '../configurations/nomad/config.hcl:/nomad/config/config.hcl'
-      - '../configurations/nomad/server.hcl:/etc/nomad.d/config/server.hcl'
+      - '../configurations/nomad/base.hcl:/etc/nomad.d/config/00-base.hcl'
+      - '../configurations/nomad/server.hcl:/etc/nomad.d/config/00-server.hcl'
+      {%- if services.nomad.customized.enabled %}
+      - '$HOME/.ministack/{{ name }}/nomad/server.hcl:/etc/nomad.d/config/01-server.hcl'
+      {%- endif %}
+      {%- if services.nomad.extra_volumes %}
+      {%- for volume in services.nomad.extra_volumes %}
+      - '$HOME/.ministack/{{ name }}/nomad/{{ volume }}:/{{ volume }}'
+      {%- endfor %}
+      {%- endif %}
       {%- if services.consul.enabled %}
       - '../configurations/consul/config.hcl:/consul/config/config.hcl'
       - '../configurations/consul/client.hcl:/etc/consul.d/config/client.hcl'

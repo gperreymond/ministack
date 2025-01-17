@@ -4,9 +4,17 @@ datacenter: 'local'
 services:
   nomad:
     enabled: true
+    customized:
+      enabled: true
+      tls: true
+    extra_volumes:
+      - 'certs'
+    version: '1.9.5'
     bootstrap_expect: 3
     clients:
       - name: 'worker-rondoudou'
+        extra_volumes:
+          - 'certs'
 
 plugins:
   traefik:

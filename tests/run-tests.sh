@@ -23,6 +23,12 @@ services:
 {{- range $key, $service := $data.services }}
 - name: "{{ $key }}"
   image: "{{ $service.image }}"
+  {{- if has $service "volumes" }}
+  volumes:
+  {{- range $volume := $service.volumes }}
+  - "{{ $volume }}"
+  {{- end }}
+  {{- end }}
   {{- if has $service "depends_on" }}
   depends_on:
   {{- range $dependency, $item := $service.depends_on }}

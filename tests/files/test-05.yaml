@@ -1,0 +1,20 @@
+name: 'hashistack'
+datacenter: 'test'
+
+services:
+  nomad:
+    enabled: true
+    customized: true
+    extra_volumes:
+      - 'testing'
+    clients:
+      - name: worker-001
+        extra_volumes:
+          - 'testing'
+
+plugins:
+  traefik:
+    enabled: true
+  prometheus:
+    enabled: true
+    customized: true

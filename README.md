@@ -36,11 +36,17 @@ services:
     enabled: true
     version: 'x.x.x' # default = "1.20.1"
     log_level: 'trace|debug|info|warn|error' # default = "info"
+    # self-elect, should be 3 or 5 for production
     bootstrap_expect: 1 # default = 1
   nomad:
     enabled: true
-    version: 'x.x.x' # default = "1.9.4"
     log_level: 'trace|debug|info|warn|error' # default = "info"
+    version: 'x.x.x' # default = "1.9.4"
+    customized:
+      enabled: false # default = false (see "customize nomad" below in the documentation )
+      extra_volumes: [] # default = [] (see "customize nomad" below in the documentation )
+      tls: false # default = false (see "customize nomad" below in the documentation )
+    # self-elect, should be 3 or 5 for production
     bootstrap_expect: 1 # default = 1
     clients: # default = []
       - name: 'worker-pikachu'
@@ -69,7 +75,15 @@ Warnings:
 __Configuration__
 * consul is disable
 * nomad with replicas 3 and one client
+* nomad is in https
 * vault is disable
+
+In __examples/hashistack-single__, you will found files needed to activate nomad in https, see nomad customize section, to learn how to manage those files and directoris.
+
+```sh
+$ mkdir -p $HOME/.ministack/hashistack-single
+```
+Then copy the content of __examples/hashistack-single__ into  __$HOME/.ministack/hashistack-single__
 
 ```sh
 # start cluster
@@ -130,7 +144,7 @@ $ mkdir -p $HOME/.ministack/$CLUSTER_NAME/prometheus/scrape_configs
 $ mkdir -p $HOME/.ministack/$CLUSTER_NAME/prometheus/rules
 ```
 
-You can add your own external configs for prometheus by activated "customize: true" in the config file, like that:
+You can add your own external configs for prometheus by activated "customized" in the config file, like that:
 ```yaml
 plugins:
   prometheus:
@@ -142,12 +156,75 @@ Now, you can add your onw rules and scrape_configs to thosee directory, see prom
 You will find exemples in __examples/hashistack-dev/prometheus__:
 > Prometheus reloading is automatically done every minute.
 
-## Customize nomad, consul and/or vault
+## Customize nomad
 
-...
+### Activate the customization
+
+First you need to create this directory, and those two files:
+```sh
+$ export CLUSTER_NAME=my-cluster-name
+$ mkdir -p $HOME/.ministack/$CLUSTER_NAME/nomad
+$ touch -p $HOME/.ministack/$CLUSTER_NAME/nomad/server.hcl
+$ touch -p $HOME/.ministack/$CLUSTER_NAME/nomad/client.hcl
+```
+
+You can add your own external configs for nomad by activated "customized" in the config file, like that:
+```yaml
+services:
+  nomad:
+    customized:
+      enabled: false 
+```
+
+> Changes in those two file will override the default configuration, or add new parts.
+
+Every time you change one of this files, you need to restart the nomad service ; To do that you just need to execute a docker command.
+```sh
+# this command will restart the nomad service in nomad-server-1
+$ docker exec -it nomad-server-1 service nomad restart
+```
+Just replace the name of the container, by the one you want to restart.
+
+### Activate the extra volumes
+
+If you need to mount volumes into nomad server and/or nomad clients, here how to process.  
+
+First you need to create irectories:
+```sh
+$ export CLUSTER_NAME=my-cluster-name
+$ mkdir -p $HOME/.ministack/$CLUSTER_NAME/nomad
+$ touch -p $HOME/.ministack/$CLUSTER_NAME/nomad/first_one
+$ touch -p $HOME/.ministack/$CLUSTER_NAME/nomad/another_one
+```
+
+```yaml
+services:
+  nomad:
+    enabled: true
+    customized:
+      extra_volumes:
+        - 'first_one'
+    clients:
+      - name: 'worker-rondoudou'
+        extra_volumes:
+          - 'another_one'
+```
+
+### Activate the tls for plugins
+
+If you customize nomad to be in https, in order to have plugins prometheus and traefik working, you also need to activate this option:
+```yaml
+services:
+  nomad:
+    customized:
+      tls: true
+```
+
+> Use this only if you want to use those plugins with nomad in https mode, else, it's not relevant.
 
 ## Some useful articles
 
+* https://developer.hashicorp.com/nomad/docs/configuration
 * https://romanzipp.com/blog/get-started-with-hashi-nomad-consul
 * https://mrkaran.dev/posts/nomad-networking-explained
 * https://last9.io/blog/mastering-prometheus-relabeling-a-comprehensive-guide
