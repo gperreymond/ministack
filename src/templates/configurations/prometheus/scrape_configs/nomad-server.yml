@@ -1,4 +1,4 @@
-{%- if services.consul.enabled %}
+{%- if services.nomad.enabled %}
 {%- set nomad_replicas = 1 -%}
 {%- if services.nomad.bootstrap_expect -%}
 {%- set nomad_replicas = services.nomad.bootstrap_expect -%}
