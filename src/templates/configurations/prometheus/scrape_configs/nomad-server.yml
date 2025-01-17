@@ -7,7 +7,13 @@ scrape_configs:
   - job_name: 'nomad-server'
     honor_timestamps: true
     metrics_path: '/v1/metrics'
+    {%- if services.nomad.customized.tls %}
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+    {%- else %}
     scheme: http
+    {%- endif %}
     params: 
       format: ["prometheus"]  
     static_configs:

@@ -26,6 +26,7 @@ services:
       - '--metrics.prometheus.addEntryPointsLabels=true'
       - '--metrics.prometheus.addServicesLabels=true'
       - '--metrics.prometheus.addrouterslabels=true'
+      - '--providers.file.filename=/traefik/dynamic_conf.yaml'
       - '--providers.docker=true'
       - '--providers.docker.exposedbydefault=false'
       {%- if services.nomad.enabled %}
@@ -56,6 +57,7 @@ services:
       - '80:80/tcp'
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock:ro'
+      - '../configurations/traefik/dynamic_conf.yaml:/traefik/dynamic_conf.yaml'
     networks:
       ministack:
         ipv4_address: '10.1.0.10'
