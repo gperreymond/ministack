@@ -193,8 +193,8 @@ First you need to create irectories:
 ```sh
 $ export CLUSTER_NAME=my-cluster-name
 $ mkdir -p $HOME/.ministack/$CLUSTER_NAME/nomad
-$ touch -p $HOME/.ministack/$CLUSTER_NAME/nomad/first_one
-$ touch -p $HOME/.ministack/$CLUSTER_NAME/nomad/another_one
+$ touch $HOME/.ministack/$CLUSTER_NAME/nomad/first_one
+$ touch $HOME/.ministack/$CLUSTER_NAME/nomad/another_one
 ```
 
 ```yaml
