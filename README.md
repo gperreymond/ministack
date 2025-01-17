@@ -173,7 +173,7 @@ You can add your own external configs for nomad by activated "customized" in the
 services:
   nomad:
     customized:
-      enabled: false 
+      enabled: true 
 ```
 
 > Changes in those two file will override the default configuration, or add new parts.
