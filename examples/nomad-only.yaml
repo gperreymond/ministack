@@ -11,3 +11,5 @@ services:
 plugins:
   traefik:
     enabled: true
+  prometheus:
+    enabled: true

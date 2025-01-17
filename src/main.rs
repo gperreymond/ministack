@@ -17,7 +17,7 @@ const OUTPUT_DIR: &str = "/tmp/ministack";
 fn main() {
     // Define the CLI arguments
     let matches = Command::new("Manage hashistack with only one binary.")
-        .version("1.1.1")
+        .version("1.1.2")
         .author("Gilles Perreymond <gperreymond@gmail.com>")
         .about("Manage hashistack with only one binary.")
         .arg(
@@ -33,6 +33,12 @@ fn main() {
                 .long("start")
                 .action(clap::ArgAction::SetTrue)
                 .help("Run 'docker compose up -d' for all generated files"),
+        )
+        .arg(
+            Arg::new("restart")
+                .long("restart")
+                .action(clap::ArgAction::SetTrue)
+                .help("Run 'docker compose up -d --force-recreate' for all generated files"),
         )
         .arg(
             Arg::new("stop")
@@ -56,6 +62,7 @@ fn main() {
     }
 
     let start_services = matches.get_flag("start");
+    let restart_services = matches.get_flag("restart");
     let stop_services = matches.get_flag("stop");
 
     // Load and parse the YAML configuration file
@@ -66,9 +73,12 @@ fn main() {
 
     // Start Docker Compose services if requested
     if start_services {
-        start_docker_compose();
+        start_docker_compose(false);
     }
-
+    // Restart Docker Compose services if requested
+    if restart_services {
+        start_docker_compose(true);
+    }
     // Stop Docker Compose services if requested
     if stop_services {
         stop_docker_compose();
@@ -195,8 +205,8 @@ fn write_to_file(output_path: &str, content: &str) {
 }
 
 /// Run `docker compose up -d` for all generated files
-fn start_docker_compose() {
-    println!("Starting Docker Compose services...");
+fn start_docker_compose(force:bool) {
+    let mut recreate: &str = "";
 
     let compose_file = "/tmp/ministack/cluster.yaml";
     if !Path::new(compose_file).exists() {
@@ -204,19 +214,31 @@ fn start_docker_compose() {
         std::process::exit(1);
     }
 
-    let mut command = ShellCommand::new("docker")
+    if force == true {
+        recreate = "--force-recreate";
+        println!("Restarting Docker Compose services...");
+    } else {
+        println!("Starting Docker Compose services...");
+    }
+
+    let mut binding = ShellCommand::new("docker");
+    let mut command = binding
         .arg("compose")
         .arg("--file")
         .arg(compose_file)
         .arg("up")
-        .arg("-d")
+        .arg("-d");
+    if force {
+        command = command.arg(recreate);
+    }
+    let mut child = command
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .expect("Failed to execute 'docker compose up -d'");
 
-    let stdout = command.stdout.take().expect("Could not capture stdout");
-    let stderr = command.stderr.take().expect("Could not capture stderr");
+    let stdout = child.stdout.take().expect("Could not capture stdout");
+    let stderr = child.stderr.take().expect("Could not capture stderr");
 
     let stdout_reader = BufReader::new(stdout);
     let stderr_reader = BufReader::new(stderr);
@@ -229,7 +251,7 @@ fn start_docker_compose() {
         eprintln!("{}", line.unwrap());
     }
 
-    let status = command.wait().expect("Failed to wait for command");
+    let status = child.wait().expect("Failed to wait for command");
     if !status.success() {
         eprintln!("Command failed with status: {}", status);
     }
