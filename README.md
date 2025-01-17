@@ -14,7 +14,7 @@ Ministack is a lightweight, local environment tool designed to mimic a Minikube-
 
 To install Ministack, follow this step:
 
-```bash
+```sh
 $ curl -fsSL https://raw.githubusercontent.com/gperreymond/ministack/main/install | bash
 ```
 
