@@ -65,23 +65,22 @@ fn main() {
     let restart_services = matches.get_flag("restart");
     let stop_services = matches.get_flag("stop");
 
-    // Load and parse the YAML configuration file
-    let config_data = load_yaml(config_path);
-
-    // Render all templates
-    let _ = render_all_templates(&config_data);
-
-    // Start Docker Compose services if requested
-    if start_services {
-        start_docker_compose(false);
-    }
     // Restart Docker Compose services if requested
     if restart_services {
         start_docker_compose(true);
-    }
-    // Stop Docker Compose services if requested
-    if stop_services {
-        stop_docker_compose();
+    } else {
+        // Load and parse the YAML configuration file
+        let config_data = load_yaml(config_path);
+        // Render all templates
+        let _ = render_all_templates(&config_data);
+        // Start Docker Compose services if requested
+        if start_services {
+            start_docker_compose(false);
+        }
+        // Stop Docker Compose services if requested
+        if stop_services {
+            stop_docker_compose();
+        }
     }
 }
 
