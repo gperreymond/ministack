@@ -239,6 +239,7 @@ services:
 ## Some useful articles
 
 * https://developer.hashicorp.com/nomad/docs/configuration
+* https://github.com/GuyBarros/nomad_jobs
 * https://romanzipp.com/blog/get-started-with-hashi-nomad-consul
 * https://mrkaran.dev/posts/nomad-networking-explained
 * https://last9.io/blog/mastering-prometheus-relabeling-a-comprehensive-guide
