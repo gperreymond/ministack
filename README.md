@@ -4,11 +4,15 @@
 
 Ministack is a lightweight, local environment tool designed to mimic a Minikube-like experience for HashiCorp's suite of tools: **Nomad**, **Consul**, and **Vault**. It allows you to easily deploy and manage local clusters, simplifying development and testing workflows.
 
+---
+
 ## Features
 
 - **Local Cluster Deployment**: Quickly launch and manage local clusters for Nomad, Consul, and Vault.
 - **Configuration Flexibility**: Define and manage multiple cluster configurations using YAML files.
 - **Simplified CLI Commands**: Start and stop clusters effortlessly with command-line tools.
+
+---
 
 ## Installation
 
@@ -17,6 +21,8 @@ To install Ministack, follow this step:
 ```sh
 $ curl -fsSL https://raw.githubusercontent.com/gperreymond/ministack/main/install | bash
 ```
+
+---
 
 ## Cluster configuration details
 
@@ -63,6 +69,8 @@ plugins:
     version: 'x.x.x'  # default = "3.1.0"
     customized: false # default = false (see "customize prometheus" below in the documentation )
 ```
+
+---
 
 ## Some examples
 
@@ -135,6 +143,8 @@ feb099f4b2e7   registry.k8s.io/pause-amd64:3.3   "/pause"                 10 min
 692cb23a48b3   registry.k8s.io/pause-amd64:3.3   "/pause"                 10 minutes ago   Up 10 minutes             nomad_init_86713971-376c-8ea4-cbc3-e31833953fe4
 ```
 
+---
+
 ## Customize prometheus
 
 First you need to create those directories:
@@ -155,6 +165,8 @@ plugins:
 Now, you can add your onw rules and scrape_configs to thosee directory, see prometheus documentation.
 You will find exemples in __examples/hashistack-dev/prometheus__:
 > Prometheus reloading is automatically done every minute.
+
+---
 
 ## Customize nomad
 
@@ -222,6 +234,8 @@ services:
 
 > Use this only if you want to use those plugins with nomad in https mode, else, it's not relevant.
 
+---
+
 ## Some useful articles
 
 * https://developer.hashicorp.com/nomad/docs/configuration
@@ -229,3 +243,11 @@ services:
 * https://mrkaran.dev/posts/nomad-networking-explained
 * https://last9.io/blog/mastering-prometheus-relabeling-a-comprehensive-guide
 * https://samber.github.io/awesome-prometheus-alerts/rules.html
+
+---
+
+## Contributing
+
+Contributions are welcome! Feel free to fork the repository and submit a pull request.
+
+---
