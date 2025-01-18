@@ -31,7 +31,12 @@ services:
       - '--providers.docker.exposedbydefault=false'
       {%- if services.nomad.enabled %}
       - '--providers.nomad=true'
+      {%- if services.nomad.customized.tls %}
+      - '--providers.nomad.endpoint.address=https://nomad-server-1:4646'
+      - '--providers.nomad.endpoint.tls.insecureskipverify=true'
+      {%- else %}
       - '--providers.nomad.endpoint.address=http://nomad-server-1:4646'
+      {%- endif %}
       - '--providers.nomad.exposedByDefault=false'
       {%- endif %}
       {%- if services.consul.enabled %}
