@@ -17,7 +17,7 @@ const OUTPUT_DIR: &str = "/tmp/ministack";
 fn main() {
     // Define the CLI arguments
     let matches = Command::new("Manage hashistack with only one binary.")
-        .version("1.1.3")
+        .version("1.1.4")
         .author("Gilles Perreymond <gperreymond@gmail.com>")
         .about("Manage hashistack with only one binary.")
         .arg(

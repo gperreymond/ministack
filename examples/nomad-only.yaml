@@ -19,5 +19,7 @@ services:
 plugins:
   traefik:
     enabled: true
+    extra_args:
+      - '--toto=apap'
   prometheus:
     enabled: true

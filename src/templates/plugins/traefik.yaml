@@ -51,6 +51,11 @@ services:
       {%- endif %}
       - '--entryPoints.web.address=:80'
       - '--entryPoints.metrics.address=:8082'
+      {%- if plugins.traefik.extra_args %}
+      {%- for arg in plugins.traefik.extra_args %}
+      - '{{ arg }}'
+      {%- endfor %}
+      {%- endif %}
     {%- if plugins.traefik.enabled %}
     labels:
       - 'traefik.enable=true'
