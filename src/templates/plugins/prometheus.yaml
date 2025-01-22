@@ -27,6 +27,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.prometheus.rule=Host(`prometheus.docker.localhost`)"
+      - 'traefik.http.routers.prometheus.entrypoints=web'
     volumes:
       - 'prometheus_data:/prometheus'
       - '../configurations/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml'
