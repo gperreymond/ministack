@@ -25,8 +25,8 @@ services:
       start_period: 10s
       timeout: 5s
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.prometheus.rule=Host(`prometheus.docker.localhost`)"
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.prometheus.rule=Host(`prometheus.docker.localhost`)'
       - 'traefik.http.routers.prometheus.entrypoints=web'
     volumes:
       - 'prometheus_data:/prometheus'
