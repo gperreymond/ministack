@@ -8,7 +8,7 @@ use std::path::Path;
 use std::process::{Command as ShellCommand, Stdio};
 use tera::{Context, Tera};
 
-/// Embed the "templates" directory into the binary
+// Embed the "templates" directory into the binary
 static TEMPLATES_DIR: Dir = include_dir!("src/templates");
 
 // Default output directory
@@ -84,7 +84,7 @@ fn main() {
     }
 }
 
-/// Check if `docker` is available
+// Check if `docker` is available
 fn is_docker_available() -> bool {
     let status = ShellCommand::new("docker")
         .arg("--version")
@@ -96,7 +96,7 @@ fn is_docker_available() -> bool {
     }
 }
 
-/// Load and parse the YAML file
+// Load and parse the YAML file
 fn load_yaml(file_path: &str) -> HashMap<String, Value> {
     let content = fs::read_to_string(file_path)
         .unwrap_or_else(|_| panic!("Could not read the file at path: {}", file_path));
@@ -104,7 +104,7 @@ fn load_yaml(file_path: &str) -> HashMap<String, Value> {
         .unwrap_or_else(|_| panic!("Failed to parse YAML file at path: {}", file_path))
 }
 
-/// Render all templates in the embedded directory, including subdirectories
+// Render all templates in the embedded directory, including subdirectories
 fn render_all_templates(config_data: &HashMap<String, Value>) -> Vec<String> {
     let mut generated_files = Vec::new();
 
@@ -118,7 +118,7 @@ fn render_all_templates(config_data: &HashMap<String, Value>) -> Vec<String> {
     generated_files
 }
 
-/// Recursively traverse the template directory and render templates
+// Recursively traverse the template directory and render templates
 fn traverse_and_render(
     dir: &Dir,
     output_dir: &Path,
@@ -142,7 +142,7 @@ fn traverse_and_render(
     }
 }
 
-/// Render a single template and save it to the output directory
+// Render a single template and save it to the output directory
 fn render_and_save_template(
     file: &File,
     config_data: &HashMap<String, Value>,
@@ -178,7 +178,7 @@ fn render_and_save_template(
     generated_files.push(output_path.to_str().unwrap().to_string());
 }
 
-/// Render a single template using Tera
+// Render a single template using Tera
 fn render_template(template_content: &str, data: &HashMap<String, Value>) -> String {
     let mut tera = Tera::default();
     tera.add_raw_template("template", template_content)
@@ -193,7 +193,7 @@ fn render_template(template_content: &str, data: &HashMap<String, Value>) -> Str
         .unwrap_or_else(|e| panic!("Failed to render template: {}", e))
 }
 
-/// Write the rendered output to a file
+// Write the rendered output to a file
 fn write_to_file(output_path: &str, content: &str) {
     let path = Path::new(output_path);
     if let Some(parent) = path.parent() {
@@ -203,7 +203,7 @@ fn write_to_file(output_path: &str, content: &str) {
         .unwrap_or_else(|_| panic!("Could not write to file at path: {}", output_path));
 }
 
-/// Run `docker compose up -d` for all generated files
+// Run `docker compose up -d` for all generated files
 fn start_docker_compose(force:bool) {
     let mut recreate: &str = "";
 
@@ -256,7 +256,7 @@ fn start_docker_compose(force:bool) {
     }
 }
 
-/// Run `docker compose down` for all generated files
+// Run `docker compose down` for all generated files
 fn stop_docker_compose() {
     println!("Stopping Docker Compose services...");
 
