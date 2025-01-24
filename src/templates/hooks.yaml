@@ -9,7 +9,6 @@
 {%- endif -%}
 
 {%- if 
-  services.nomad.enabled or 
   services.consul.enabled or
   plugins.prometheus.enabled
 %}
