@@ -1,10 +1,10 @@
 [package]
 name = "ministack"
-version = "1.1.4"
+version = "1.2.0"
 edition = "2021"
 
 [dependencies]
-clap = { version = "4.0", features = ["derive"] }
+clap = { version = "4.5.25", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 tera = "1.20"

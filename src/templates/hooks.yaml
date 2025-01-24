@@ -31,26 +31,6 @@ services:
       prometheus:
         condition: service_healthy
   {%- endif %}
-  {%- if services.nomad.enabled %}
-  post-start-nomad:
-    image: 'bash:5.2.37'
-    container_name: 'post-start-nomad'
-    restart: unless-stopped
-    command: |
-      bash -c "
-        apk add curl > /dev/null 2>&1
-        sleep 60
-      "
-    volumes:
-      - './scripts:/scripts'
-    networks:
-      ministack: {}
-    depends_on:
-      {%- for i in range(start=1, end=nomad_replicas+1) %}
-      'nomad-server-{{ i }}':
-        condition: service_healthy
-      {%- endfor %}
-  {%- endif %}
   {%- if services.consul.enabled %}
   post-start-consul:
     image: 'bash:5.2.37'
