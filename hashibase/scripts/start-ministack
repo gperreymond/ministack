@@ -41,6 +41,7 @@ start_netbird_if_config_exists() {
     docker volume create netbird_agent_data
     docker run --name netbird-agent --rm -d \
       --privileged \
+      --network "host" \
       --env-file $config_dir/config.env \
       -v netbird_agent_data:/etc/netbird \
       netbirdio/netbird:$version

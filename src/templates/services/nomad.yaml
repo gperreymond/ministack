@@ -9,7 +9,7 @@
 {%- endif -%}
 
 {%- if services.nomad.enabled %}
-{%- set version = "1.0.0" -%}
+{%- set version = "1.1.0" -%}
 {%- if hashibase.version -%}
 {%- set version = hashibase.version -%}
 {%- endif -%}
