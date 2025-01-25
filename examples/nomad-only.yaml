@@ -7,17 +7,16 @@ services:
     customized:
       enabled: true
       tls: true
+    netbird:
+      extra_envs:
+        NB_SETUP_KEY: '49FA7B91-6DD4-4654-9B5C-2F29585C3C2F'
     extra_volumes:
       - 'certs'
-    version: '1.9.5'
     bootstrap_expect: 3
-    clients:
-      - name: 'worker-rondoudou'
-        extra_volumes:
-          - 'certs'
+    clients: []
 
 plugins:
   traefik:
     enabled: true
-  prometheus:
+  netbird:
     enabled: true

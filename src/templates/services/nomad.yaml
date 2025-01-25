@@ -49,6 +49,9 @@ services:
       {%- if services.consul.version %}
       CONSUL_VERSION: '{{ services.consul.version }}'
       {%- endif %}
+      {%- if plugins.netbird.version %}
+      NETBIRD_VERSION: '{{ plugins.netbird.version }}'
+      {%- endif %}
     {%- if plugins.traefik.enabled %}
     labels:
       - 'traefik.enable=true'
@@ -64,6 +67,9 @@ services:
       - '../configurations/nomad/config.hcl:/nomad/config/config.hcl'
       - '../configurations/nomad/base.hcl:/etc/nomad.d/config/00-base.hcl'
       - '../configurations/nomad/server.hcl:/etc/nomad.d/config/00-server.hcl'
+      {%- if plugins.netbird.enabled and services.nomad.netbird.extra_envs %}
+      - '../configurations/nomad/netbird.env:/netbird/config/config.env'
+      {%- endif %}
       {%- if services.nomad.customized.enabled %}
       - '$HOME/.ministack/{{ name }}/nomad/server.hcl:/etc/nomad.d/config/01-server.hcl'
       {%- endif %}

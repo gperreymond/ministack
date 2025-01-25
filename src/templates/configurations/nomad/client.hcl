@@ -13,7 +13,11 @@ consul {}
 
 client {
   enabled = true
+  {%- if plugins.netbird.enabled and services.nomad.netbird.extra_envs %}
+  network_interface = "{{ `{{ GetPrivateInterfaces | include \"network\" \"100.64.0.0/10\" | attr \"name\" }}` }}"
+  {%- else %}
   network_interface = "{{ `{{ GetPrivateInterfaces | include \"network\" \"10.1.0.0/24\" | attr \"name\" }}` }}"
+  {%- endif %}
   {%- if not services.consul.enabled %}
   servers = [
     {%- for i in range(start=1, end=replicas+1) %}

@@ -108,9 +108,10 @@ COPY --from=hashibase / /
 
 USER root
 
-ENV NOMAD_VERSION="1.9.4"
-ENV CONSUL_VERSION="1.20.1"
+ENV NOMAD_VERSION="1.9.5"
+ENV CONSUL_VERSION="1.20.2"
 ENV VAULT_VERSION="1.18.3"
+ENV NETBIRD_VERSION="0.36.3"
 
 # tell systemd that it is in docker (it will check for the container env)
 # https://systemd.io/CONTAINER_INTERFACE/
