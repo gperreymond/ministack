@@ -9,7 +9,7 @@ services:
   nomad:
     enabled: true
     customized:
-      files: true
+      extra_configs: true
       tls: true
       post_start:
         - '/scripts/netbird-start'
