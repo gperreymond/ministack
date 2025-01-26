@@ -6,6 +6,8 @@ ARG CONSUL_CNI_PLUGINS_VERSION="1.6.1"
 ARG CNI_PLUGINS_VERSION="1.6.2"
 
 # copy files
+COPY scripts/consul-is-ready /usr/local/bin/consul-is-ready
+COPY scripts/nomad-is-ready /usr/local/bin/nomad-is-ready
 COPY scripts/start-ministack /usr/local/bin/start-ministack
 COPY scripts/entrypoint /usr/local/bin/entrypoint
 COPY scripts/clean-install /usr/local/bin/clean-install
@@ -34,6 +36,8 @@ RUN echo "Ensuring scripts are executable ..." \
   && chmod +x \
     /usr/local/bin/clean-install \
     /usr/local/bin/entrypoint \
+    /usr/local/bin/consul-is-ready \
+    /usr/local/bin/nomad-is-ready \
     /usr/local/bin/start-ministack \
   && echo "Installing Packages ..." \
     && DEBIAN_FRONTEND=noninteractive clean-install \
@@ -69,6 +73,8 @@ RUN clean-install \
     sudo \
     openssh-server \
     dnsutils \
+    jq \
+    net-tools \
     # libglib2.0-0 is required for conmon, which is required for podman
     libglib2.0-0
 
@@ -111,7 +117,6 @@ USER root
 ENV NOMAD_VERSION="1.9.5"
 ENV CONSUL_VERSION="1.20.2"
 ENV VAULT_VERSION="1.18.3"
-ENV NETBIRD_VERSION="0.36.3"
 
 # tell systemd that it is in docker (it will check for the container env)
 # https://systemd.io/CONTAINER_INTERFACE/

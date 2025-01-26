@@ -7,7 +7,6 @@ echo "============================================================="
 echo "[INFO] NOMAD_VERSION.................. $NOMAD_VERSION"
 echo "[INFO] CONSUL_VERSION................. $CONSUL_VERSION"
 echo "[INFO] VAULT_VERSION.................. $VAULT_VERSION"
-echo "[INFO] NETBIRD_VERSION................ $NETBIRD_VERSION"
 echo "============================================================="
 echo ""
 
@@ -32,26 +31,6 @@ start_if_config_exists() {
   fi
 }
 
-start_netbird_if_config_exists() {
-  service="netbird"
-  local config_dir=$1
-  local version=$2
-  if [ -d "$config_dir" ] && [ "$(ls -A "$config_dir")" ]; then
-    echo "[INFO] Configuration files found for $service. Starting $service..."
-    docker volume create netbird_agent_data
-    docker run --name netbird-agent --rm -d \
-      --privileged \
-      --network "host" \
-      --env-file $config_dir/config.env \
-      -v netbird_agent_data:/etc/netbird \
-      netbirdio/netbird:$version
-  else
-    echo "[WARN] No configuration files found for $service. Skipping $service..."
-  fi
-}
-
-# start Netbird if config files exist
-start_netbird_if_config_exists "/netbird/config" $NETBIRD_VERSION
 # start Vault if config files exist
 start_if_config_exists "vault" "/vault/config" $VAULT_VERSION
 # start Consul if config files exist
