@@ -1,22 +1,23 @@
 name: 'hashistack-single'
 datacenter: 'local'
 
+hashibase:
+  repository: 'docker.io/library/hashibase'
+  tag: 'dev'
+
 services:
   nomad:
     enabled: true
     customized:
-      enabled: true
+      files: true
       tls: true
-    netbird:
-      extra_envs:
-        NB_SETUP_KEY: '49FA7B91-6DD4-4654-9B5C-2F29585C3C2F'
+      post_start:
+        - '/scripts/netbird-start'
+      bind_addr: '{{ GetInterfaceIP \"wt0\" }}'
+      retry_join:
+        - "exec=/scripts/netbird-peers"
     extra_volumes:
       - 'certs'
+      - 'scripts'
     bootstrap_expect: 3
     clients: []
-
-plugins:
-  traefik:
-    enabled: true
-  netbird:
-    enabled: true

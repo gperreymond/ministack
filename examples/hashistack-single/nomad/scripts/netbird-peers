@@ -1,0 +1,7 @@
+#!/bin/bash
+
+NETBIRD_API_TOKEN="nbp_fFUPIQsHRK0fdnLGXfXM8K7fhb5pAp3lQf5A"
+
+curl -sX GET https://api.netbird.io/api/peers -H "Accept: application/json" -H "Authorization: Token ${NETBIRD_API_TOKEN}" \
+    | jq -r '.[].ip' \
+    | sort | tr '\n' ' ' | sed 's/ $//'

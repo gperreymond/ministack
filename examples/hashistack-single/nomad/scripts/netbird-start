@@ -1,0 +1,24 @@
+#!/bin/bash
+
+NETBIRD_VERSION="0.36.3"
+NB_SETUP_KEY="D16D68C5-9E09-482F-9ABB-B5A05C555F00"
+
+# loop until the Docker service is running
+while true; do
+  status=$(systemctl is-active docker)
+  if [ "$status" == "active" ]; then
+    break
+  fi
+  echo "[WARN] waiting for Docker to start..."
+  sleep 1  # wait for 1 seconds before checking again
+done
+
+echo "[INFO] docker is running."
+
+docker volume create netbird_agent_data
+docker run --name netbird-agent --rm -d \
+  --privileged \
+  --network "host" \
+  -e NB_SETUP_KEY=$NB_SETUP_KEY \
+  -v netbird_agent_data:/etc/netbird \
+  netbirdio/netbird:$NETBIRD_VERSION

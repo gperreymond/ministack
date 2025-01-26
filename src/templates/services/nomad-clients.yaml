@@ -9,17 +9,27 @@
 {%- endif -%}
 
 {%- if services.nomad.enabled and services.nomad.clients %}
-{%- set version = "1.1.0" -%}
-{%- if hashibase.version -%}
-{%- set version = hashibase.version -%}
+{%- set repository = "ghcr.io/gperreymond/hashibase" -%}
+{%- if hashibase.repository -%}
+{%- set repository = hashibase.repository -%}
+{%- endif -%}
+{%- set tag = "base-1.1.0" -%}
+{%- if hashibase.tag -%}
+{%- set tag = hashibase.tag -%}
 {%- endif -%}
 services:
   {%- for client in services.nomad.clients %}
   {{ client.name }}:
-    image: 'ghcr.io/gperreymond/hashibase:base-{{ version }}'
+    image: '{{ repository }}:{{ tag }}'
     container_name: '{{ client.name }}'
     hostname: '{{ client.name }}'
     privileged: 'true'
+    healthcheck:
+      test: ["CMD", "nomad-is-ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     post_start:
       - command: 'start-ministack'
     pre_stop:
@@ -39,7 +49,7 @@ services:
       - '../configurations/nomad/config.hcl:/nomad/config/config.hcl'
       - '../configurations/nomad/base.hcl:/etc/nomad.d/config/00-base.hcl'
       - '../configurations/nomad/client.hcl:/etc/nomad.d/config/00-client.hcl'
-      {%- if services.nomad.customized.enabled %}
+      {%- if services.nomad.customized.extra_configs %}
       - '$HOME/.ministack/{{ name }}/nomad/client.hcl:/etc/nomad.d/config/01-client.hcl'
       {%- endif %}
       {%- if client.extra_volumes %}
@@ -52,6 +62,7 @@ services:
       - '../configurations/consul/client.hcl:/etc/consul.d/config/client.hcl'
       {%- endif %}
       - 'nomad_client_{{ client.name }}_data:/nomad/data'
+      - 'nomad_client_{{ client.name }}_docker_data:/var/lib/docker'
       {%- if services.consul.enabled %}
       - 'nomad_client_{{ client.name }}_consul_client_data:/consul/data'
       {%- endif %}
@@ -74,6 +85,7 @@ services:
 volumes:
   {%- for client in services.nomad.clients %}
   nomad_client_{{ client.name }}_data: {}
+  nomad_client_{{ client.name }}_docker_data: {}
   {%- if services.consul.enabled %}
   nomad_client_{{ client.name }}_consul_client_data: {}
   {%- endif %}

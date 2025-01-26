@@ -4,14 +4,18 @@
 {%- endif -%}
 
 {%- if services.consul.enabled %}
-{%- set version = "1.1.0" -%}
-{%- if hashibase.version -%}
-{%- set version = hashibase.version -%}
+{%- set repository = "ghcr.io/gperreymond/hashibase" -%}
+{%- if hashibase.repository -%}
+{%- set repository = hashibase.repository -%}
+{%- endif -%}
+{%- set tag = "base-1.1.0" -%}
+{%- if hashibase.tag -%}
+{%- set tag = hashibase.tag -%}
 {%- endif -%}
 services:
   {%- for i in range(start=1, end=consul_replicas+1) %}
   consul-server-{{ i }}:
-    image: 'ghcr.io/gperreymond/hashibase:base-{{ version }}'
+    image: '{{ repository }}:{{ tag }}'
     container_name: 'consul-server-{{ i }}'
     hostname: 'consul-server-{{ i }}'
     privileged: 'true'
@@ -20,7 +24,7 @@ services:
     pre_stop:
       - command: 'service consul stop'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://10.1.0.10{{ i }}:8500/v1/status/leader"]
+      test: ["CMD", "consul-is-ready"]
       interval: 30s
       retries: 3
       start_period: 10s

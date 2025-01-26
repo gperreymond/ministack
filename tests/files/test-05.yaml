@@ -4,7 +4,8 @@ datacenter: 'test'
 services:
   nomad:
     enabled: true
-    customized: true
+    customized:
+      extra_files: true
     extra_volumes:
       - 'testing'
     clients:

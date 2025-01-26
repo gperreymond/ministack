@@ -9,9 +9,13 @@
 {%- endif -%}
 
 {%- if services.nomad.enabled %}
-{%- set version = "1.1.0" -%}
-{%- if hashibase.version -%}
-{%- set version = hashibase.version -%}
+{%- set repository = "ghcr.io/gperreymond/hashibase" -%}
+{%- if hashibase.repository -%}
+{%- set repository = hashibase.repository -%}
+{%- endif -%}
+{%- set tag = "base-1.1.0" -%}
+{%- if hashibase.tag -%}
+{%- set tag = hashibase.tag -%}
 {%- endif -%}
 services:
   {%- set replicas = 1 -%}
@@ -20,11 +24,16 @@ services:
   {%- endif -%}
   {%- for i in range(start=1, end=replicas+1) %}
   nomad-server-{{ i }}:
-    image: 'ghcr.io/gperreymond/hashibase:base-{{ version }}'
+    image: '{{ repository }}:{{ tag }}'
     container_name: 'nomad-server-{{ i }}'
     hostname: 'nomad-server-{{ i }}'
     privileged: 'true'
     post_start:
+      {%- if services.nomad.customized.post_start %}
+      {%- for item in services.nomad.customized.post_start %}
+      - command: '{{ item }}'
+      {%- endfor %}
+      {%- endif %}
       - command: 'start-ministack'
     pre_stop:
       - command: 'service nomad stop'
@@ -32,15 +41,11 @@ services:
       - command: 'service consul stop'
       {%- endif %}
     healthcheck:
-      {%- if services.nomad.customized.tls %}
-      test: ["CMD", "curl", "--insecure", "-f", "https://10.1.0.20{{ i }}:4646/v1/status/leader"]
-      {%- else %}
-      test: ["CMD", "curl", "-f", "http://10.1.0.20{{ i }}:4646/v1/status/leader"]
-      {%- endif %}
-      interval: 30s
-      retries: 3
-      start_period: 10s
+      test: ["CMD", "nomad-is-ready"]
+      interval: 10s
       timeout: 5s
+      retries: 3
+      start_period: 30s
     environment:
       MINISTACK: 'true'
       {%- if services.nomad.version %}
@@ -48,9 +53,6 @@ services:
       {%- endif %}
       {%- if services.consul.version %}
       CONSUL_VERSION: '{{ services.consul.version }}'
-      {%- endif %}
-      {%- if plugins.netbird.version %}
-      NETBIRD_VERSION: '{{ plugins.netbird.version }}'
       {%- endif %}
     {%- if plugins.traefik.enabled %}
     labels:
@@ -67,10 +69,7 @@ services:
       - '../configurations/nomad/config.hcl:/nomad/config/config.hcl'
       - '../configurations/nomad/base.hcl:/etc/nomad.d/config/00-base.hcl'
       - '../configurations/nomad/server.hcl:/etc/nomad.d/config/00-server.hcl'
-      {%- if plugins.netbird.enabled and services.nomad.netbird.extra_envs %}
-      - '../configurations/nomad/netbird.env:/netbird/config/config.env'
-      {%- endif %}
-      {%- if services.nomad.customized.enabled %}
+      {%- if services.nomad.customized.extra_configs %}
       - '$HOME/.ministack/{{ name }}/nomad/server.hcl:/etc/nomad.d/config/01-server.hcl'
       {%- endif %}
       {%- if services.nomad.extra_volumes %}
@@ -83,6 +82,7 @@ services:
       - '../configurations/consul/client.hcl:/etc/consul.d/config/client.hcl'
       {%- endif %}
       - 'nomad_server_{{ i }}_data:/nomad/data'
+      - 'nomad_server_{{ i }}_docker_data:/var/lib/docker'
       {%- if services.consul.enabled %}
       - 'nomad_server_{{ i }}_consul_client_data:/consul/data'
       {%- endif %}
@@ -101,6 +101,7 @@ services:
 volumes:
   {%- for i in range(start=1, end=nomad_replicas+1) %}
   nomad_server_{{ i }}_data: {}
+  nomad_server_{{ i }}_docker_data: {}
   {%- if services.consul.enabled %}
   nomad_server_{{ i }}_consul_client_data: {}
   {%- endif %}

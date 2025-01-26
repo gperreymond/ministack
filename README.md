@@ -35,24 +35,28 @@ name: 'my-cluster-name'
 datacenter: 'datacenter name used for nomad/consul'
 
 hashibase:
-  version: 'x.x.x' # default = "base-1.0.0"
+  repository: 'custom' # default = "ghcr.io/gperreymond/hashibase"
+  tag: 'custom' # default = "base-1.1.0"
 
 services:
   consul:
     enabled: true
-    version: 'x.x.x' # default = "1.20.1"
+    version: 'x.x.x' # default = "1.20.2"
     log_level: 'trace|debug|info|warn|error' # default = "info"
     # self-elect, should be 3 or 5 for production
     bootstrap_expect: 1 # default = 1
   nomad:
     enabled: true
     log_level: 'trace|debug|info|warn|error' # default = "info"
-    version: 'x.x.x' # default = "1.9.4"
+    version: 'x.x.x' # default = "1.9.5"
     customized:
-      enabled: false # default = false (see "customize nomad" below in the documentation )
+      extra_configs: false # default = false (see "customize nomad" below in the documentation )
       extra_volumes: [] # default = [] (see "customize nomad" below in the documentation )
       tls: false # default = false (see "customize nomad" below in the documentation )
-    # self-elect, should be 3 or 5 for production
+      bind_addr: '....' # default = null (see "nomad bind_add" documentation)
+      retry_join: [] # default = [] (see "customize nomad" below in the documentation )
+    # self-elect, should be 3 or 5 for production.
+    # could be 0, i you want only clients, but you need to work on custom retry_join
     bootstrap_expect: 1 # default = 1
     clients: # default = []
       - name: 'worker-pikachu'
@@ -80,9 +84,11 @@ Warnings:
 
 ### Cluster mode "nomad only"
 
+> Usage of __netbird__ as vpn network!
+
 __Configuration__
 * consul is disable
-* nomad with replicas 3 and one client
+* nomad with replicas 3 and no clients
 * nomad is in https
 * vault is disable
 
@@ -162,15 +168,16 @@ plugins:
     customized: true
 ```
 
-Now, you can add your onw rules and scrape_configs to thosee directory, see prometheus documentation.
-You will find exemples in __examples/hashistack-dev/prometheus__:
-> Prometheus reloading is automatically done every minute.
+* Now, you can add your onw rules and scrape_configs to thosee directory, see prometheus documentation.
+* Prometheus reloading is automatically done every minute.
+
+> You will find exemples in __examples/hashistack-dev/prometheus__
 
 ---
 
 ## Customize nomad
 
-### Activate the customization
+### Activate extra config files
 
 First you need to create this directory, and those two files:
 ```sh
@@ -185,17 +192,36 @@ You can add your own external configs for nomad by activated "customized" in the
 services:
   nomad:
     customized:
-      enabled: true 
+      extra_configs: true 
 ```
 
-> Changes in those two file will override the default configuration, or add new parts.
+* Changes in those two file will override the default configuration, or add new parts.
+* Every time you change one of this files, you need to restart the nomad service ; To do that you just need to execute a docker command.
 
-Every time you change one of this files, you need to restart the nomad service ; To do that you just need to execute a docker command.
 ```sh
 # this command will restart the nomad service in nomad-server-1
 $ docker exec -it nomad-server-1 service nomad restart
 ```
 Just replace the name of the container, by the one you want to restart.
+
+### Activate another bind address
+
+```yaml
+services:
+  nomad:
+    customized:
+      bind_addr: '{{ GetInterfaceIP \"eht1\" }}'
+```
+
+### Activate custom retry_join
+
+```yaml
+services:
+  nomad:
+    customized:
+      retry_join:
+        - "exec=/scripts/netbird-peers"
+```
 
 ### Activate the extra volumes
 

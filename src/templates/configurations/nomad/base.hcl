@@ -17,8 +17,8 @@ telemetry {
   publish_node_metrics = true
 }
 
-{%- if plugins.netbird.enabled and services.nomad.netbird.extra_envs %}
-bind_addr  = "{{ `{{ GetPrivateInterfaces | include \"network\" \"100.64.0.0/10\" | attr \"address\" }}` }}"
+{%- if services.nomad.customized.bind_addr %}
+bind_addr = "{{ services.nomad.customized.bind_addr }}"
 {%- else %}
 bind_addr  = "{{ `{{ GetPrivateInterfaces | include \"network\" \"10.1.0.0/24\" | attr \"address\" }}` }}"
 {%- endif %}
