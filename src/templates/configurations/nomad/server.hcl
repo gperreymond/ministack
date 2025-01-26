@@ -17,11 +17,19 @@ server {
   server_join {
     retry_max = 3
     retry_interval = "15s"
+    {% if services.nomad.customized.retry_join %}
+    retry_join = [
+      {%- for item in services.nomad.customized.retry_join %}
+      "{{ item }}",
+      {%- endfor %}
+    ]
+    {%- else %}
     retry_join = [
       {%- for i in range(start=1, end=replicas+1) %}
       "nomad-server-{{ i }}",
       {%- endfor %}
     ]
+    {%- endif %}
   }
   {%- endif %}
 }
