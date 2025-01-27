@@ -1,6 +1,6 @@
 {%- set hashibase_repository = "ghcr.io/gperreymond/hashibase" -%}
 {%- if  hashibase.repository -%}{%- set hashibase_repository = hashibase.repository -%}{%- endif -%}
-{%- set hashibase_tag = "base-1.1.0" -%}
+{%- set hashibase_tag = "base-1.2.0" -%}
 {%- if  hashibase.tag -%}{%- set hashibase_tag = hashibase.tag -%}{%- endif -%}
 
 {%- if services.nomad.servers %}

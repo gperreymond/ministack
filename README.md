@@ -29,49 +29,48 @@ $ curl -fsSL https://raw.githubusercontent.com/gperreymond/ministack/main/instal
 All default versions, are the minimum versions working with the automatic config files.
 
 ```yaml
-# mandatory
-name: 'my-cluster-name'
-# mandatory
-datacenter: 'datacenter name used for nomad/consul'
+name: 'europe-paris'
+datacenter: 'europe-paris'
 
 hashibase:
-  repository: 'custom' # default = "ghcr.io/gperreymond/hashibase"
-  tag: 'custom' # default = "base-1.1.0"
+  repository: 'ghcr.io/gperreymond/hashibase'
+  tag: 'base-1.2.0'
+
+network:
+  subnet: '10.1.0.0/24'
+
+secrets:
+  - 'nomad.env'
 
 services:
-  consul:
-    enabled: true
-    version: 'x.x.x' # default = "1.20.2"
-    log_level: 'trace|debug|info|warn|error' # default = "info"
-    # self-elect, should be 3 or 5 for production
-    bootstrap_expect: 1 # default = 1
   nomad:
     enabled: true
-    log_level: 'trace|debug|info|warn|error' # default = "info"
-    version: 'x.x.x' # default = "1.9.5"
-    customized:
-      extra_configs: false # default = false (see "customize nomad" below in the documentation )
-      extra_volumes: [] # default = [] (see "customize nomad" below in the documentation )
-      tls: false # default = false (see "customize nomad" below in the documentation )
-      bind_addr: '....' # default = null (see "nomad bind_add" documentation)
-      retry_join: [] # default = [] (see "customize nomad" below in the documentation )
-    # self-elect, should be 3 or 5 for production.
-    # could be 0, i you want only clients, but you need to work on custom retry_join
-    bootstrap_expect: 1 # default = 1
-    clients: # default = []
-      - name: 'worker-pikachu'
-      - name: 'worker-ronflex'
-
-plugins:
-  traefik:
-    enabled: true
-    log_level: 'RACE|DEBUG|INFO|WARN|ERROR|FATAL|PANIC' # default = "INFO"
-    version: 'x.x.x' # default = "3.3.1"
-  prometheus:
-    enabled: true
-    log_level: 'info' # default = "info"
-    version: 'x.x.x'  # default = "3.1.0"
-    customized: false # default = false (see "customize prometheus" below in the documentation )
+    config:
+      bind_addr: '{{ GetInterfaceIP \"eth0\" }}'
+      log_level: 'info'
+      server:
+        bootstrap_expect: 3
+        labels:
+          - 'traefik.enable=true'
+          - 'traefik.http.routers.nomad.rule=Host(`nomad.docker.localhost`)'
+          - 'traefik.http.routers.nomad.entrypoints=web'
+          - 'traefik.http.services.nomad.loadbalancer.server.port=4646'
+        # retry_join:
+        #   - 'provider=aws tag_key=... tag_value=...'
+        #   - 'provider=azure tag_name=... tag_value=... tenant_id=... client_id=... subscription_id=... secret_access_key=...'
+    servers:
+      - name: 'nomad-server-1a'
+        labels:
+          - 'server=1a'
+      - name: 'nomad-server-1b'
+        labels:
+          - 'server=1b'
+      - name: 'nomad-server-1c'
+        labels:
+          - 'server=1c'
+    clients:
+      - name: 'worker-system'
+      - name: 'worker-monitoring'
 ```
 
 ---

@@ -1,4 +1,4 @@
-{%- set network_subnet = "10.10.0.0/24" -%}
+{%- set network_subnet = "10.1.0.0/24" -%}
 {%- if network.subnet -%}{%- set network_subnet = network.subnet -%}{%- endif -%}
 
 name: '{{ name }}'
