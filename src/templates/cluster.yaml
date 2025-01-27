@@ -1,29 +1,32 @@
+{%- set network_subnet = "10.10.0.0/24" -%}
+{%- if network.subnet -%}{%- set network_subnet = network.subnet -%}{%- endif -%}
+
 name: '{{ name }}'
 
+{%- if 
+  services.nomad.enabled or
+  services.consul.enabled or
+  services.vault.enabled
+%}
 include:
-  - 'hooks.yaml'
-  {%- if plugins.traefik.enabled %}
-  - 'plugins/traefik.yaml'
+  # CONSUL
+  {%- if services.consul.servers %}
+  - 'consul/servers.yaml'
   {%- endif %}
-  {%- if plugins.prometheus.enabled %}
-  - 'plugins/prometheus.yaml'
+  # NOMAD
+  {%- if services.nomad.servers %}
+  - 'nomad/servers.yaml'
   {%- endif %}
-  {%- if services.consul.enabled %}
-  - 'services/consul.yaml'
-  {%- endif %}
-  {%- if services.nomad.enabled %}
-  - 'services/nomad.yaml'
   {%- if services.nomad.clients %}
-  - 'services/nomad-clients.yaml'
+  - 'nomad/clients.yaml'
   {%- endif %}
-  {%- endif %}
-  {%- if services.vault.enabled %}
-  - 'services/vault.yaml'
-  {%- endif %}
+{%- else %}
+include: []
+{%- endif %}
 
 networks:
   ministack:
     driver: 'bridge'
     ipam:
       config:
-        - subnet: '10.1.0.0/24'
+        - subnet: '{{ network_subnet }}'

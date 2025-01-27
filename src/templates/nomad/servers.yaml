@@ -1,0 +1,51 @@
+{%- set hashibase_repository = "ghcr.io/gperreymond/hashibase" -%}
+{%- if  hashibase.repository -%}{%- set hashibase_repository = hashibase.repository -%}{%- endif -%}
+{%- set hashibase_tag = "base-1.1.0" -%}
+{%- if  hashibase.tag -%}{%- set hashibase_tag = hashibase.tag -%}{%- endif -%}
+
+{%- if services.nomad.servers %}
+services:
+  {%- for item in services.nomad.servers %}
+  {{ datacenter }}-{{ item.name }}:
+    image: '{{ hashibase_repository }}:{{ hashibase_tag }}'
+    container_name: '{{ datacenter }}-{{ item.name }}'
+    hostname: '{{ datacenter }}-{{ item.name }}'
+    privileged: 'true'
+    post_start:
+      - command: 'start-ministack'
+    healthcheck:
+      test: ["CMD", "nomad-is-ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    labels:
+      - 'ministack/nomad=server'
+      {%- if services.nomad.config.server.labels %}
+      {%- for label in services.nomad.config.server.labels %}
+      - '{{ label }}'
+      {%- endfor %}
+      {%- endif %}
+      {%- if item.labels %}
+      {%- for label in item.labels %}
+      - '{{ label }}'
+      {%- endfor %}
+      {%- endif %}
+    volumes:
+      - '../configurations/nomad/config.hcl:/nomad/config/config.hcl'
+      - '../configurations/nomad/base.hcl:/etc/nomad.d/config/00-base.hcl'
+      - '../configurations/nomad/server.hcl:/etc/nomad.d/config/00-server.hcl'
+      - '{{ item.name }}_data:/nomad/data'
+      - '{{ item.name }}_docker_data:/var/lib/docker'
+    networks:
+      ministack: {}
+  {%- endfor %}
+{%- endif %}
+
+{%- if services.nomad.servers %}
+volumes:
+  {%- for item in services.nomad.servers %}
+  {{ item.name }}_data: {}
+  {{ item.name }}_docker_data: {}
+  {%- endfor %}
+{%- endif %}
