@@ -1,4 +1,4 @@
 .env
-cluster.env
+.ministack
 
 /target

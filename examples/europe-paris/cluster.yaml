@@ -9,7 +9,7 @@ network:
   subnet: '10.1.0.0/24'
 
 secrets:
-  - 'nomad.env'
+  - '../cluster.env'
 
 services:
   nomad:

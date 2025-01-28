@@ -11,11 +11,8 @@ use tera::{Context, Tera};
 // Embed the "templates" directory into the binary
 static TEMPLATES_DIR: Dir = include_dir!("src/templates");
 
-// Default output directory
-const OUTPUT_DIR: &str = "/tmp/ministack";
-
 fn main() {
-    // Define the CLI arguments
+    // Define CLI arguments
     let matches = Command::new("Manage hashistack with only one binary.")
         .version("1.2.0")
         .author("Gilles Perreymond <gperreymond@gmail.com>")
@@ -48,7 +45,7 @@ fn main() {
         )
         .get_matches();
 
-    // Verify that `docker` is installed
+    // Verify that Docker is installed
     if !is_docker_available() {
         eprintln!("Error: 'docker' is not installed or not accessible in the PATH.");
         std::process::exit(1);
@@ -61,30 +58,44 @@ fn main() {
         std::process::exit(1);
     }
 
+    // Define the output directory dynamically based on the config file
+    let output_dir = Path::new(config_path)
+        .parent()
+        .expect("Failed to determine parent directory of the config file")
+        .join(".ministack");
+
+    // Ensure the output directory exists
+    fs::create_dir_all(&output_dir).unwrap_or_else(|_| {
+        panic!(
+            "Could not create output directory: {}",
+            output_dir.display()
+        )
+    });
+
     let start_services = matches.get_flag("start");
     let restart_services = matches.get_flag("restart");
     let stop_services = matches.get_flag("stop");
 
     // Restart Docker Compose services if requested
     if restart_services {
-        start_docker_compose(true);
+        start_docker_compose(true, &output_dir);
     } else {
         // Load and parse the YAML configuration file
         let config_data = load_yaml(config_path);
         // Render all templates
-        let _ = render_all_templates(&config_data);
+        let _ = render_all_templates(&config_data, &output_dir);
         // Start Docker Compose services if requested
         if start_services {
-            start_docker_compose(false);
+            start_docker_compose(false, &output_dir);
         }
         // Stop Docker Compose services if requested
         if stop_services {
-            stop_docker_compose();
+            stop_docker_compose(&output_dir);
         }
     }
 }
 
-// Check if `docker` is available
+// Check if Docker is available
 fn is_docker_available() -> bool {
     let status = ShellCommand::new("docker")
         .arg("--version")
@@ -105,15 +116,14 @@ fn load_yaml(file_path: &str) -> HashMap<String, Value> {
 }
 
 // Render all templates in the embedded directory, including subdirectories
-fn render_all_templates(config_data: &HashMap<String, Value>) -> Vec<String> {
+fn render_all_templates(config_data: &HashMap<String, Value>, output_dir: &Path) -> Vec<String> {
     let mut generated_files = Vec::new();
 
-    // Ensure the output directory exists
-    let _ = fs::remove_dir_all(OUTPUT_DIR);
-    fs::create_dir_all(OUTPUT_DIR).unwrap_or_else(|_| panic!("Could not create directory: {}", OUTPUT_DIR));
+    fs::remove_dir_all(output_dir).ok();
+    fs::create_dir_all(output_dir).unwrap_or_else(|_| panic!("Could not create directory: {}", output_dir.display()));
 
     // Traverse and render files recursively
-    traverse_and_render(&TEMPLATES_DIR, Path::new(OUTPUT_DIR), config_data, &mut generated_files);
+    traverse_and_render(&TEMPLATES_DIR, output_dir, config_data, &mut generated_files);
 
     generated_files
 }
@@ -121,22 +131,29 @@ fn render_all_templates(config_data: &HashMap<String, Value>) -> Vec<String> {
 // Recursively traverse the template directory and render templates
 fn traverse_and_render(
     dir: &Dir,
-    output_dir: &Path,
+    base_output_dir: &Path, // The base output directory for all templates
     config_data: &HashMap<String, Value>,
     generated_files: &mut Vec<String>,
 ) {
     for entry in dir.entries() {
         match entry {
             include_dir::DirEntry::Dir(subdir) => {
-                // Construire le chemin du sous-dossier dans output_dir
-                let sub_output_dir = output_dir.join(subdir.path().strip_prefix(TEMPLATES_DIR.path()).unwrap());
+                // Get the relative path of the subdirectory
+                let relative_path = subdir.path().strip_prefix(TEMPLATES_DIR.path()).unwrap();
+                // Build the full output directory path
+                let sub_output_dir = base_output_dir.join(relative_path);
 
-                // Appeler récursivement traverse_and_render
-                traverse_and_render(subdir, &sub_output_dir, config_data, generated_files);
+                // Ensure the output directory exists
+                fs::create_dir_all(&sub_output_dir).unwrap_or_else(|_| {
+                    panic!("Could not create directory: {}", sub_output_dir.display())
+                });
+
+                // Recursively process the subdirectory
+                traverse_and_render(subdir, base_output_dir, config_data, generated_files);
             }
             include_dir::DirEntry::File(file) => {
-                // Rendre et sauvegarder les templates
-                render_and_save_template(file, config_data, generated_files);
+                // Render and save the templates
+                render_and_save_template(file, config_data, generated_files, base_output_dir);
             }
         }
     }
@@ -147,34 +164,33 @@ fn render_and_save_template(
     file: &File,
     config_data: &HashMap<String, Value>,
     generated_files: &mut Vec<String>,
+    base_output_dir: &Path,
 ) {
     let template_path = file.path();
     let template_content = file.contents_utf8().expect("Template file is not valid UTF-8");
 
-    // Calculer le chemin relatif correctement à partir de TEMPLATES_DIR
+    // Compute the relative path from the root of TEMPLATES_DIR
     let relative_path = template_path
         .strip_prefix(TEMPLATES_DIR.path())
         .expect("Failed to strip TEMPLATES_DIR prefix");
 
-    // Combiner output_dir avec le chemin relatif
-    let formatted_path = format!("/tmp/ministack/{}", relative_path.display());
-    let output_path = Path::new(&formatted_path);
+    // Combine the base output directory with the relative path
+    let output_path = base_output_dir.join(relative_path);
 
-
-    // Afficher les chemins pour debug
+    // Log the paths for debugging
     println!(
         "Rendering template: '{}', saving to '{}'",
         relative_path.display(),
         output_path.display()
     );
 
-    // Rendu du template
+    // Render the template content
     let output = render_template(template_content, config_data);
 
-    // Écriture du contenu dans le fichier de sortie
+    // Write the rendered content to the output file
     write_to_file(output_path.to_str().unwrap(), &output);
 
-    // Ajouter le fichier généré à la liste
+    // Add the generated file to the list
     generated_files.push(output_path.to_str().unwrap().to_string());
 }
 
@@ -188,7 +204,6 @@ fn render_template(template_content: &str, data: &HashMap<String, Value>) -> Str
     for (key, value) in data {
         context.insert(key, &value);
     }
-    // println!("{}", template_content);
     tera.render("template", &context)
         .unwrap_or_else(|e| panic!("Failed to render template: {}", e))
 }
@@ -204,12 +219,14 @@ fn write_to_file(output_path: &str, content: &str) {
 }
 
 // Run `docker compose up -d` for all generated files
-fn start_docker_compose(force:bool) {
+fn start_docker_compose(force: bool, output_dir: &Path) {
     let mut recreate: &str = "";
-
-    let compose_file = "/tmp/ministack/cluster.yaml";
-    if !Path::new(compose_file).exists() {
-        eprintln!("Error: Docker Compose file '{}' does not exist.", compose_file);
+    let compose_file = output_dir.join("cluster.yaml");
+    if !compose_file.exists() {
+        eprintln!(
+            "Error: Docker Compose file '{}' does not exist.",
+            compose_file.display()
+        );
         std::process::exit(1);
     }
 
@@ -257,12 +274,13 @@ fn start_docker_compose(force:bool) {
 }
 
 // Run `docker compose down` for all generated files
-fn stop_docker_compose() {
-    println!("Stopping Docker Compose services...");
-
-    let compose_file = "/tmp/ministack/cluster.yaml";
-    if !Path::new(compose_file).exists() {
-        eprintln!("Error: Docker Compose file '{}' does not exist.", compose_file);
+fn stop_docker_compose(output_dir: &Path) {
+    let compose_file = output_dir.join("cluster.yaml");
+    if !compose_file.exists() {
+        eprintln!(
+            "Error: Docker Compose file '{}' does not exist.",
+            compose_file.display()
+        );
         std::process::exit(1);
     }
 

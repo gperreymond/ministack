@@ -7,9 +7,6 @@ server {
 
 client {
   enabled = true
-  template {
-    disable_file_sandbox = true
-  }
   server_join {
     retry_max = 3
     retry_interval = "15s"
@@ -26,6 +23,9 @@ client {
       {%- endfor %}
     ]
     {%- endif %}
+  }
+  template {
+    disable_file_sandbox = true
   }
 }
 
