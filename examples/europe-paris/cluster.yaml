@@ -19,6 +19,9 @@ services:
       log_level: 'info'
       server:
         bootstrap_expect: 3
+        local_volumes:
+          - 'certs:/certs'
+          - 'nomad/01-tls.hcl:/etc/nomad.d/config/01-tls.hcl'
         labels:
           - 'traefik.enable=true'
           - 'traefik.http.routers.nomad.rule=Host(`nomad.docker.localhost`)'
@@ -27,6 +30,10 @@ services:
         # retry_join:
         #   - 'provider=aws tag_key=... tag_value=...'
         #   - 'provider=azure tag_name=... tag_value=... tenant_id=... client_id=... subscription_id=... secret_access_key=...'
+      client:
+        local_volumes:
+          - 'certs:/certs'
+          - 'nomad/01-tls.hcl:/etc/nomad.d/config/01-tls.hcl'
     servers:
       - name: 'nomad-server-1a'
         labels:
