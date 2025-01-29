@@ -24,7 +24,31 @@ $ curl -fsSL https://raw.githubusercontent.com/gperreymond/ministack/main/instal
 
 ---
 
+## Usage
+
+```sh
+$ ministack --config examples/nomad/minimum/cluster.yaml --start
+$ ministack --config examples/nomad/minimum/cluster.yaml --stop
+```
+
+---
+
 ## Cluster configuration details
+
+This is the minimum configuration to have a fully working nomad server/client.
+
+```yaml
+name: 'nomad-minimum'
+datacenter: 'localhost'
+
+services:
+  nomad:
+    enabled: true
+    servers:
+      - name: 'server'
+    clients:
+      - name: 'worker'
+```
 
 This is a full example if you decide to use all the custom values:
 
