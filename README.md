@@ -27,8 +27,8 @@ $ curl -fsSL https://raw.githubusercontent.com/gperreymond/ministack/main/instal
 ## Usage
 
 ```sh
-$ ministack --config examples/nomad/minimum/cluster.yaml --start
-$ ministack --config examples/nomad/minimum/cluster.yaml --stop
+$ ministack --config [path_to_your_config_yaml_file] --start
+$ ministack --config [path_to_your_config_yaml_file] --stop
 ```
 
 ---
@@ -36,6 +36,11 @@ $ ministack --config examples/nomad/minimum/cluster.yaml --stop
 ## Cluster configuration details
 
 This is the minimum configuration to have a fully working nomad server/client.
+
+```sh
+$ ministack --config examples/nomad/minimum/cluster.yaml --start
+$ ministack --config examples/nomad/minimum/cluster.yaml --stop
+```
 
 ```yaml
 name: 'nomad-minimum'
@@ -53,8 +58,8 @@ services:
 This is a full example if you decide to use all the custom values:
 
 ```yaml
-name: 'europe-paris'
-datacenter: 'europe-paris'
+name: 'nomad-customized'
+datacenter: 'local'
 
 network:
   subnet: '10.1.0.0/24'
