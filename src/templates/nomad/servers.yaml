@@ -37,11 +37,18 @@ services:
       - '../configurations/nomad/server.hcl:/etc/nomad.d/config/00-server.hcl'
       - '{{ item.name }}_data:/nomad/data'
       - '{{ item.name }}_docker_data:/var/lib/docker'
+      # local volumes
       {%- if services.nomad.config.server.local_volumes %}
       {%- for volume in services.nomad.config.server.local_volumes %}
       - '../../{{ volume }}'
       {%- endfor %}
       {%- endif %}
+      {%- if item.local_volumes %}
+      {%- for volume in item.local_volumes %}
+      - '../../{{ volume }}'
+      {%- endfor %}
+      {%- endif %}
+      # docker volumes
     networks:
       ministack: {}
   {%- endfor %}

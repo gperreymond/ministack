@@ -1,9 +1,13 @@
+{%- if 
+  services.nomad.enabled and 
+  services.nomad.servers
+%}
+
 {%- set bootstrap_expect = 1 -%}
 {%- if  services.nomad.config.server.bootstrap_expect -%}{%- set bootstrap_expect = services.nomad.config.server.bootstrap_expect -%}{%- endif -%}
 {%- set retry_join = "nomad" -%}
 {%- if  services.nomad.config.server.retry_join -%}{%- set retry_join = services.nomad.config.server.retry_join -%}{%- endif -%}
 
-{%- if services.nomad.servers %}
 server {
   enabled = true
   bootstrap_expect = {{ bootstrap_expect }}

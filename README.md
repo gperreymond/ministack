@@ -26,38 +26,38 @@ $ curl -fsSL https://raw.githubusercontent.com/gperreymond/ministack/main/instal
 
 ## Cluster configuration details
 
-All default versions, are the minimum versions working with the automatic config files.
+This is a full example if you decide to us all the custom values:
 
 ```yaml
 name: 'europe-paris'
 datacenter: 'europe-paris'
 
-hashibase:
-  repository: 'ghcr.io/gperreymond/hashibase'
-  tag: 'base-1.2.0'
-
 network:
   subnet: '10.1.0.0/24'
-
-secrets:
-  - 'nomad.env'
 
 services:
   nomad:
     enabled: true
     config:
-      bind_addr: '{{ GetInterfaceIP \"eth0\" }}'
-      log_level: 'info'
+      bind_addr: '{{ GetInterfaceIP \"eth1\" }}'
+      log_level: 'debug'
       server:
-        bootstrap_expect: 3
+        bootstrap_expect: 5
+        local_volumes:
+          - 'certs:/certs'
+          - 'nomad/01-tls.hcl:/etc/nomad.d/config/01-tls.hcl'
         labels:
           - 'traefik.enable=true'
           - 'traefik.http.routers.nomad.rule=Host(`nomad.docker.localhost`)'
           - 'traefik.http.routers.nomad.entrypoints=web'
           - 'traefik.http.services.nomad.loadbalancer.server.port=4646'
-        # retry_join:
-        #   - 'provider=aws tag_key=... tag_value=...'
-        #   - 'provider=azure tag_name=... tag_value=... tenant_id=... client_id=... subscription_id=... secret_access_key=...'
+        retry_join:
+          - 'provider=aws tag_key=... tag_value=...'
+          - 'provider=azure tag_name=... tag_value=... tenant_id=... client_id=... subscription_id=... secret_access_key=...'
+      client:
+        local_volumes:
+          - 'certs:/certs'
+          - 'nomad/01-tls.hcl:/etc/nomad.d/config/01-tls.hcl'
     servers:
       - name: 'nomad-server-1a'
         labels:
@@ -71,6 +71,8 @@ services:
     clients:
       - name: 'worker-system'
       - name: 'worker-monitoring'
+        docker_volumes:
+          - 'prometheus_data'
 ```
 
 ---

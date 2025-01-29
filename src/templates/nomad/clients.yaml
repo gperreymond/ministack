@@ -37,9 +37,26 @@ services:
       - '../configurations/nomad/client.hcl:/etc/nomad.d/config/00-client.hcl'
       - '{{ item.name }}_data:/nomad/data'
       - '{{ item.name }}_docker_data:/var/lib/docker'
+      # local volumes
       {%- if services.nomad.config.client.local_volumes %}
       {%- for volume in services.nomad.config.client.local_volumes %}
       - '../../{{ volume }}'
+      {%- endfor %}
+      {%- endif %}
+      {%- if item.local_volumes %}
+      {%- for volume in item.local_volumes %}
+      - '../../{{ volume }}'
+      {%- endfor %}
+      {%- endif %}
+      # docker volumes
+      {%- if services.nomad.config.client.docker_volumes %}
+      {%- for volume in services.nomad.config.client.docker_volumes %}
+      - '{{ item.name }}_{{ volume }}:/mnt/{{ volume }}'
+      {%- endfor %}
+      {%- endif %}
+      {%- if item.docker_volumes %}
+      {%- for volume in item.docker_volumes %}
+      - '{{ item.name }}_{{ volume }}:/mnt/{{ volume }}'
       {%- endfor %}
       {%- endif %}
     networks:
@@ -52,5 +69,16 @@ volumes:
   {%- for item in services.nomad.clients %}
   {{ item.name }}_data: {}
   {{ item.name }}_docker_data: {}
+  # docker volumes
+  {%- if services.nomad.config.client.docker_volumes %}
+  {%- for volume in services.nomad.config.client.docker_volumes %}
+  {{ item.name }}_{{ volume }}: {}
+  {%- endfor %}
+  {%- endif %}
+  {%- if item.docker_volumes %}
+  {%- for volume in item.docker_volumes %}
+  {{ item.name }}_{{ volume }}: {}
+  {%- endfor %}
+  {%- endif %}
   {%- endfor %}
 {%- endif %}

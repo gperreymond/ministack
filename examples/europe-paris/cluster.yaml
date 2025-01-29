@@ -8,9 +8,6 @@ hashibase:
 network:
   subnet: '10.1.0.0/24'
 
-secrets:
-  - '../cluster.env'
-
 services:
   nomad:
     enabled: true
@@ -47,20 +44,5 @@ services:
     clients:
       - name: 'worker-system'
       - name: 'worker-monitoring'
-
-# services:
-#   nomad:
-#     enabled: true
-#     customized:
-#       extra_configs: true
-#       tls: true
-#       post_start:
-#         - '/scripts/netbird-start'
-#       bind_addr: '{{ GetInterfaceIP \"wt0\" }}'
-#       retry_join:
-#         - "exec=/scripts/netbird-peers"
-#     extra_volumes:
-#       - 'certs'
-#       - 'scripts'
-#     bootstrap_expect: 3
-#     clients: []
+        docker_volumes:
+          - 'prometheus_data'

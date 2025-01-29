@@ -1,3 +1,7 @@
+{%- if 
+  services.nomad.enabled and 
+  services.nomad.clients
+%}
 {%- set retry_join = "nomad" -%}
 {%- if  services.nomad.config.client.retry_join -%}{%- set retry_join = services.nomad.config.client.retry_join -%}{%- endif -%}
 
@@ -39,3 +43,4 @@ plugin "docker" {
     extra_labels = ["job_name", "task_group_name", "task_name", "namespace", "node_name"]
   }
 }
+{%- endif %}

@@ -1,0 +1,10 @@
+name: 'nomad-minimum'
+datacenter: 'localhost'
+
+services:
+  nomad:
+    enabled: true
+    servers:
+      - name: 'server'
+    clients:
+      - name: 'worker'
