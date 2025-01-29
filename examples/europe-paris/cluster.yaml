@@ -6,7 +6,7 @@ hashibase:
   tag: 'dev'
 
 network:
-  subnet: '10.1.0.0/24'
+  subnet: '10.1.20.0'
 
 services:
   nomad:

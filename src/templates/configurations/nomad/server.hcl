@@ -15,8 +15,8 @@ server {
     memory_oversubscription_enabled = true
   }
   server_join {
-    retry_max = 3
-    retry_interval = "15s"
+    retry_max = 10
+    retry_interval = "30s"
     {%- if retry_join == "nomad" %}
     retry_join = [
       {%- for item in services.nomad.servers %}

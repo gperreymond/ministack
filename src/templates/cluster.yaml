@@ -1,4 +1,4 @@
-{%- set network_subnet = "10.1.0.0/24" -%}
+{%- set network_subnet = "10.1.0.0" -%}
 {%- if network.subnet -%}{%- set network_subnet = network.subnet -%}{%- endif -%}
 
 name: '{{ name }}'
@@ -29,4 +29,4 @@ networks:
     driver: 'bridge'
     ipam:
       config:
-        - subnet: '{{ network_subnet }}'
+        - subnet: '{{ network_subnet }}/24'

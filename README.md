@@ -72,7 +72,7 @@ name: 'nomad-customized'
 datacenter: 'local'
 
 network:
-  subnet: '10.1.0.0/24'
+  subnet: '10.10.10.0'
 
 services:
   nomad:
