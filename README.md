@@ -42,7 +42,7 @@ services:
       bind_addr: '{{ GetInterfaceIP \"eth1\" }}'
       log_level: 'debug'
       server:
-        bootstrap_expect: 5
+        bootstrap_expect: 3
         local_volumes:
           - 'certs:/certs'
           - 'nomad/01-tls.hcl:/etc/nomad.d/config/01-tls.hcl'
