@@ -1,0 +1,14 @@
+scrape_configs:
+  - job_name: 'nomad-servers'
+    honor_timestamps: true
+    metrics_path: '/v1/metrics'
+    scheme: 'https'
+    tls_config:
+      insecure_skip_verify: true
+    params: 
+      format: ['prometheus']  
+    static_configs:
+      - targets:
+          - '10.1.20.11:4646'
+          - '10.1.20.12:4646'
+          - '10.1.20.13:4646'

@@ -45,5 +45,8 @@ services:
     clients:
       - name: 'worker-system'
       - name: 'worker-monitoring'
+        local_volumes:
+          - 'prometheus/rules:/mnt/prometheus/rules'
+          - 'prometheus/scrape_configs:/mnt/prometheus/scrape_configs'
         docker_volumes:
           - 'prometheus_data'
