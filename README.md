@@ -26,7 +26,7 @@ $ curl -fsSL https://raw.githubusercontent.com/gperreymond/ministack/main/instal
 
 ## Cluster configuration details
 
-This is a full example if you decide to us all the custom values:
+This is a full example if you decide to use all the custom values:
 
 ```yaml
 name: 'europe-paris'
