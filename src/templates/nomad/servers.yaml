@@ -11,6 +11,11 @@ services:
     container_name: '{{ datacenter }}-{{ item.name }}'
     hostname: '{{ datacenter }}-{{ item.name }}'
     privileged: 'true'
+    environment:
+      MINISTACK: 'true'
+      {%- if services.nomad.version %}
+      NOMAD_VERSION: '{{ services.nomad.version }}'
+      {%- endif %}
     post_start:
       - command: 'start-ministack'
     healthcheck:
@@ -48,7 +53,6 @@ services:
       - '../../{{ volume }}'
       {%- endfor %}
       {%- endif %}
-      # docker volumes
     networks:
       ministack: {}
   {%- endfor %}

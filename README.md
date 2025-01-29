@@ -24,12 +24,22 @@ $ curl -fsSL https://raw.githubusercontent.com/gperreymond/ministack/main/instal
 
 ---
 
-## Usage
+## Usages
 
+Automatic usage:
 ```sh
 $ ministack --config [path_to_your_config_yaml_file] --start
 $ ministack --config [path_to_your_config_yaml_file] --stop
 ```
+
+But you can also, only generate the docker compose files, and manage manually:
+```sh
+$ ministack --config examples/europe-paris/cluster.yaml
+$ docker compose --file examples/europe-paris/.ministack/cluster.yaml up -d
+$ docker compose --file examples/europe-paris/.ministack/cluster.yaml down
+```
+
+This approach is ideal if you want to add some docker compose services you created, or working on a customization of nomad files.
 
 ---
 
@@ -67,6 +77,7 @@ network:
 services:
   nomad:
     enabled: true
+    version: '1.9.5'
     config:
       bind_addr: '{{ GetInterfaceIP \"eth1\" }}'
       log_level: 'debug'
