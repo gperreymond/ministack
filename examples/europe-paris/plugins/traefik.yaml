@@ -39,4 +39,4 @@ services:
       europe-paris-nomad-server-1c:
         condition: service_healthy
     networks:
-      ministack: {}
+      ipv4_address: '10.1.20.2'

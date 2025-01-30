@@ -45,7 +45,8 @@ This approach is ideal if you want to add some docker compose services you creat
 
 ## Cluster configuration details
 
-This is the minimum configuration to have a fully working nomad server/client.
+This is the minimum configuration to have a fully working nomad server/client.  
+With this configuration and those command lines, you can start working with nomad.
 
 ```sh
 $ ministack --config examples/nomad/minimum/cluster.yaml --start
@@ -66,7 +67,10 @@ services:
       - name: 'worker-2'
 ```
 
-This is a full example if you decide to use all the custom values:
+This is a full example if you decide to use all the custom values.  
+You can find a full usage into __examples/europe-paris__. This approach let you really customize nomad, and adding __plugins__.  
+Plugins are pieces of docker compose services you managed and integrate into the stack.  
+You will find traefik as plugin into this example.
 
 ```yaml
 name: 'nomad-customized'
@@ -95,9 +99,11 @@ services:
           - 'traefik.http.routers.nomad.rule=Host(`nomad.docker.localhost`)'
           - 'traefik.http.routers.nomad.entrypoints=web'
           - 'traefik.http.services.nomad.loadbalancer.server.port=4646'
-        retry_join:
-          - 'provider=aws tag_key=... tag_value=...'
-          - 'provider=azure tag_name=... tag_value=... tenant_id=... client_id=... subscription_id=... secret_access_key=...'
+          - 'traefik.http.services.nomad.loadbalancer.server.scheme=https'
+          - 'traefik.http.services.nomad.loadbalancer.serverstransport=insecure@file'
+        # retry_join:
+        #  - 'provider=aws tag_key=... tag_value=...'
+        #  - 'provider=azure tag_name=... tag_value=... tenant_id=... client_id=... subscription_id=... secret_access_key=...'
       client:
         local_volumes:
           - 'certs:/certs'
@@ -119,6 +125,9 @@ services:
       - name: 'worker-monitoring'
         labels:
           - 'client=monitoring'
+        local_volumes:
+          - 'prometheus/rules:/mnt/prometheus/rules'
+          - 'prometheus/scrape_configs:/mnt/prometheus/scrape_configs'
         docker_volumes:
           - 'prometheus_data'
 ```
