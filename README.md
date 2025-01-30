@@ -73,14 +73,15 @@ Plugins are pieces of docker compose services you managed and integrate into the
 You will find traefik as plugin into this example.
 
 ```yaml
-name: 'nomad-customized'
-datacenter: 'local'
+name: 'europe-paris'
+datacenter: 'europe-paris'
 
 network:
-  subnet: '10.10.10.0'
+  subnet: '10.1.20.0'
 
 plugins:
   - 'plugins/traefik.yaml'
+  - 'plugins/prometheus-reloader.yaml'
 
 services:
   nomad:
@@ -88,7 +89,7 @@ services:
     version: '1.9.5'
     config:
       bind_addr: '{{ GetInterfaceIP \"eth0\" }}'
-      log_level: 'debug'
+      log_level: 'info'
       server:
         bootstrap_expect: 3
         local_volumes:
@@ -101,9 +102,9 @@ services:
           - 'traefik.http.services.nomad.loadbalancer.server.port=4646'
           - 'traefik.http.services.nomad.loadbalancer.server.scheme=https'
           - 'traefik.http.services.nomad.loadbalancer.serverstransport=insecure@file'
-        # retry_join:
-        #  - 'provider=aws tag_key=... tag_value=...'
-        #  - 'provider=azure tag_name=... tag_value=... tenant_id=... client_id=... subscription_id=... secret_access_key=...'
+        # retry_join:
+        #   - 'provider=aws tag_key=... tag_value=...'
+        #   - 'provider=azure tag_name=... tag_value=... tenant_id=... client_id=... subscription_id=... secret_access_key=...'
       client:
         local_volumes:
           - 'certs:/certs'
@@ -120,11 +121,7 @@ services:
           - 'server=1c'
     clients:
       - name: 'worker-system'
-        labels:
-          - 'client=system'
       - name: 'worker-monitoring'
-        labels:
-          - 'client=monitoring'
         local_volumes:
           - 'prometheus/rules:/mnt/prometheus/rules'
           - 'prometheus/scrape_configs:/mnt/prometheus/scrape_configs'
