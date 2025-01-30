@@ -1,0 +1,15 @@
+services:
+  prometheus-reloader:
+    image: 'bash:5.2.37'
+    container_name: 'prometheus-reloader'
+    restart: 'unless-stopped'
+    extra_hosts:
+      - 'prometheus.docker.localhost:10.1.20.2'
+    command: |
+      bash -c "
+        apk add curl > /dev/null 2>&1
+        curl -X POST http://prometheus.docker.localhost/-/reload
+        sleep 60
+      "
+    networks:
+      ministack: {}
