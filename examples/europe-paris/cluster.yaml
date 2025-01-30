@@ -1,10 +1,6 @@
 name: 'europe-paris'
 datacenter: 'europe-paris'
 
-hashibase:
-  repository: 'docker.io/library/hashibase'
-  tag: 'dev'
-
 network:
   subnet: '10.1.20.0'
 
