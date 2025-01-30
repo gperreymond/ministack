@@ -25,18 +25,18 @@ job "prometheus" {
         image      = "prom/prometheus:v3.1.0"
         privileged = true
         args = [
-          "--config.file=/etc/prometheus/prometheus.yml", 
+          "--config.file=/etc/prometheus/prometheus.yml",
           "--storage.tsdb.path=/prometheus",
           "--web.console.libraries=/usr/share/prometheus/console_libraries",
           "--web.console.templates=/usr/share/prometheus/consoles",
           "--web.enable-remote-write-receiver",
           "--web.enable-lifecycle",
           "--storage.tsdb.retention.time=6h",
-          "--storage.tsdb.retention.size=4GB",  
-          "--storage.tsdb.max-block-duration=2h", 
-          "--storage.tsdb.min-block-duration=2h", 
+          "--storage.tsdb.retention.size=4GB",
+          "--storage.tsdb.max-block-duration=2h",
+          "--storage.tsdb.min-block-duration=2h",
         ]
-        ports      = ["http"]
+        ports = ["http"]
         volumes = [
           "local/prometheus.yml:/etc/prometheus/prometheus.yml",
           "/mnt/prometheus_data:/prometheus",
@@ -70,7 +70,7 @@ EOF
         provider = "nomad"
         name     = "prometheus"
         port     = "http"
-        tags     = [
+        tags = [
           "metrics", "monitoring",
           "traefik.enable=true",
           "traefik.http.routers.prometheus.rule=Host(`prometheus.docker.localhost`)",
@@ -84,6 +84,11 @@ EOF
           interval = "10s"
           timeout  = "2s"
         }
+      }
+
+      logs {
+        max_files     = 1
+        max_file_size = 5
       }
     }
   }
