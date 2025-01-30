@@ -81,7 +81,6 @@ network:
 
 plugins:
   - 'plugins/traefik.yaml'
-  - 'plugins/prometheus-reloader.yaml'
 
 services:
   nomad:
