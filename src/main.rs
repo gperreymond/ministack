@@ -14,7 +14,7 @@ static TEMPLATES_DIR: Dir = include_dir!("src/templates");
 fn main() {
     // Define CLI arguments
     let matches = Command::new("Manage hashistack with only one binary.")
-        .version("1.2.0")
+        .version("1.2.1")
         .author("Gilles Perreymond <gperreymond@gmail.com>")
         .about("Manage hashistack with only one binary.")
         .arg(
