@@ -1,0 +1,42 @@
+services:
+  traefik:
+    image: 'traefik:v3.3.2'
+    container_name: 'traefik'
+    command:
+      - '--log.level=INFO'
+      - '--ping=true'
+      - '--api.insecure=true'
+      - '--metrics.prometheus.entryPoint=metrics'
+      - '--metrics.prometheus=true'
+      - '--metrics.prometheus.addEntryPointsLabels=true'
+      - '--metrics.prometheus.addServicesLabels=true'
+      - '--metrics.prometheus.addrouterslabels=true'
+      - '--providers.file.filename=/traefik/dynamic_conf.yaml'
+      - '--providers.docker=true'
+      - '--providers.docker.exposedbydefault=false'
+      - '--providers.nomad=true'
+      - '--providers.nomad.endpoint.address=https://10.1.20.11:4646'
+      - '--providers.nomad.namespaces=default'
+      - '--providers.nomad.endpoint.tls.insecureskipverify=true'
+      - '--providers.nomad.exposedByDefault=false'
+      - '--entryPoints.web.address=:80'
+      - '--entryPoints.metrics.address=:8082'
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.traefik-dashboard.rule=Host(`traefik.docker.localhost`)'
+      - 'traefik.http.routers.traefik-dashboard.entrypoints=web'
+      - 'traefik.http.routers.traefik-dashboard.service=api@internal'
+    ports:
+      - '80:80/tcp'
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
+      - './files/traefik/dynamic_conf.yaml:/traefik/dynamic_conf.yaml'
+    depends_on:
+      europe-paris-nomad-server-1a:
+        condition: service_healthy
+      europe-paris-nomad-server-1b:
+        condition: service_healthy
+      europe-paris-nomad-server-1c:
+        condition: service_healthy
+    networks:
+      ministack: {}

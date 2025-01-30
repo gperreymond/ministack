@@ -6,7 +6,8 @@ name: '{{ name }}'
 {%- if 
   services.nomad.enabled or
   services.consul.enabled or
-  services.vault.enabled
+  services.vault.enabled or
+  plugins
 %}
 include:
   # CONSUL
@@ -19,6 +20,12 @@ include:
   {%- endif %}
   {%- if services.nomad.clients %}
   - 'nomad/clients.yaml'
+  {%- endif %}
+  # PLUGINS
+  {%- if plugins %}
+  {%- for item in plugins %}
+  - '../{{ item }}'
+  {%- endfor %}
   {%- endif %}
 {%- else %}
 include: []

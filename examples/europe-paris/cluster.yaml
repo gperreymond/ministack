@@ -8,6 +8,9 @@ hashibase:
 network:
   subnet: '10.1.20.0'
 
+plugins:
+  - 'plugins/traefik.yaml'
+
 services:
   nomad:
     enabled: true
@@ -25,6 +28,8 @@ services:
           - 'traefik.http.routers.nomad.rule=Host(`nomad.docker.localhost`)'
           - 'traefik.http.routers.nomad.entrypoints=web'
           - 'traefik.http.services.nomad.loadbalancer.server.port=4646'
+          - 'traefik.http.services.nomad.loadbalancer.server.scheme=https'
+          - 'traefik.http.services.nomad.loadbalancer.serverstransport=insecure@file'
         # retry_join:
         #   - 'provider=aws tag_key=... tag_value=...'
         #   - 'provider=azure tag_name=... tag_value=... tenant_id=... client_id=... subscription_id=... secret_access_key=...'

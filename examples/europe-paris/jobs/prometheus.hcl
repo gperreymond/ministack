@@ -70,7 +70,13 @@ EOF
         provider = "nomad"
         name     = "prometheus"
         port     = "http"
-        tags     = ["metrics", "monitoring"]
+        tags     = [
+          "metrics", "monitoring",
+          "traefik.enable=true",
+          "traefik.http.routers.prometheus.rule=Host(`prometheus.docker.localhost`)",
+          "traefik.http.routers.prometheus.entrypoints=web",
+          "traefik.http.services.prometheus.loadbalancer.passhostheader=true",
+        ]
 
         check {
           type     = "http"

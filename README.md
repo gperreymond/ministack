@@ -62,7 +62,8 @@ services:
     servers:
       - name: 'server'
     clients:
-      - name: 'worker'
+      - name: 'worker-1'
+      - name: 'worker-2'
 ```
 
 This is a full example if you decide to use all the custom values:
@@ -74,12 +75,15 @@ datacenter: 'local'
 network:
   subnet: '10.10.10.0'
 
+plugins:
+  - 'plugins/traefik.yaml'
+
 services:
   nomad:
     enabled: true
     version: '1.9.5'
     config:
-      bind_addr: '{{ GetInterfaceIP \"eth1\" }}'
+      bind_addr: '{{ GetInterfaceIP \"eth0\" }}'
       log_level: 'debug'
       server:
         bootstrap_expect: 3
@@ -110,7 +114,11 @@ services:
           - 'server=1c'
     clients:
       - name: 'worker-system'
+        labels:
+          - 'client=system'
       - name: 'worker-monitoring'
+        labels:
+          - 'client=monitoring'
         docker_volumes:
           - 'prometheus_data'
 ```
