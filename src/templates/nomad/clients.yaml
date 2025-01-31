@@ -8,6 +8,8 @@
 {%- if services.nomad.clients %}
 services:
   {%- for item in services.nomad.clients %}
+  {%- set loop_index = loop.index -%}
+  {%- if item.loop_index %}{%- set loop_index = item.loop_index %}{%- endif %}
   {{ datacenter }}-{{ item.name }}:
     image: '{{ hashibase_repository }}:{{ hashibase_tag }}'
     container_name: '{{ datacenter }}-{{ item.name }}'
@@ -68,7 +70,7 @@ services:
       {%- endif %}
     networks:
       ministack:
-        ipv4_address: '{{ network_subnet | split(pat=".") | slice(start=0, end=3) | join(sep=".") }}.{{ 100 + loop.index }}'
+        ipv4_address: '{{ network_subnet | split(pat=".") | slice(start=0, end=3) | join(sep=".") }}.{{ 100 + loop_index }}'
   {%- endfor %}
 {%- endif %}
 

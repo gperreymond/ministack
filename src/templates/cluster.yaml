@@ -31,9 +31,16 @@ include:
 include: []
 {%- endif %}
 
+{%- if network.external.enabled %}
+networks:
+  ministack:
+    external: true
+    name: '{{ name }}_ministack'
+{%- else %}
 networks:
   ministack:
     driver: 'bridge'
     ipam:
       config:
         - subnet: '{{ network_subnet }}/24'
+{%- endif %}

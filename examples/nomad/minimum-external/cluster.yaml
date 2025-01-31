@@ -1,0 +1,17 @@
+name: 'nomad-minimum'
+datacenter: 'localhost'
+
+network:
+  external:
+    enabled: true
+
+services:
+  nomad:
+    enabled: true
+    config:
+      client:
+        retry_join:
+          - 'localhost-server'
+    clients:
+      - name: 'worker-external'
+        loop_index: 10
