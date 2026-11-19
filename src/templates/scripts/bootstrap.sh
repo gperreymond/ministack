@@ -1,8 +1,17 @@
+{%- set nomad_tls = false -%}
+{%- if services.nomad.enabled -%}{%- if services.nomad.config.tls -%}{%- set nomad_tls = true -%}{%- endif -%}{%- endif -%}
+{%- set consul_tls = false -%}
+{%- if services.consul.enabled -%}{%- if services.consul.config.tls -%}{%- set consul_tls = true -%}{%- endif -%}{%- endif -%}
+{%- set vault_tls = false -%}
+{%- if services.vault.enabled -%}{%- if services.vault.config.tls -%}{%- set vault_tls = true -%}{%- endif -%}{%- endif -%}
+{%- set any_tls = nomad_tls or consul_tls or vault_tls -%}
+{%- set nomad_scheme = "http" -%}{%- if nomad_tls -%}{%- set nomad_scheme = "https" -%}{%- endif -%}
+{%- set consul_scheme = "http" -%}{%- set consul_port = 8500 -%}
+{%- if consul_tls -%}{%- set consul_scheme = "https" -%}{%- set consul_port = 8501 -%}{%- endif -%}
+{%- set vault_scheme = "http" -%}{%- if vault_tls -%}{%- set vault_scheme = "https" -%}{%- endif -%}
 {%- set network_subnet = "10.1.0.0" -%}
 {%- if network.subnet -%}{%- set network_subnet = network.subnet -%}{%- endif -%}
 {%- set network_prefix = network_subnet | split(pat=".") | slice(start=0, end=3) | join(sep=".") -%}
-{%- set nomad_scheme = "http" -%}
-{%- if services.nomad.config.tls -%}{%- set nomad_scheme = "https" -%}{%- endif -%}
 {%- set nomad_acl = false -%}
 {%- if services.nomad.config.acl.enabled -%}{%- set nomad_acl = true -%}{%- endif -%}
 {%- set nomad_token = "11111111-1111-1111-1111-111111111111" -%}
@@ -27,24 +36,35 @@
 # runs at every start, every step is idempotent
 
 set -euo pipefail
+{%- if any_tls %}
+
+# curl trusts the ministack ca
+export CURL_CA_BUNDLE='/ministack/tls/ca.pem'
+{%- endif %}
 {%- if with_nomad %}
 
 export NOMAD_ADDR='{{ nomad_scheme }}://{{ network_prefix }}.11:4646'
-{%- if services.nomad.config.tls %}
-export NOMAD_SKIP_VERIFY='true'
+{%- if nomad_tls %}
+export NOMAD_CACERT='/ministack/tls/ca.pem'
 {%- endif %}
 {%- if nomad_acl %}
 export NOMAD_TOKEN='{{ nomad_token }}'
 {%- endif %}
 {%- endif %}
 {%- if services.consul.enabled and services.consul.servers %}
-export CONSUL_HTTP_ADDR='http://{{ network_prefix }}.21:8500'
+export CONSUL_HTTP_ADDR='{{ consul_scheme }}://{{ network_prefix }}.21:{{ consul_port }}'
+{%- if consul_tls %}
+export CONSUL_CACERT='/ministack/tls/ca.pem'
+{%- endif %}
 {%- if consul_acl %}
 export CONSUL_HTTP_TOKEN='{{ consul_token }}'
 {%- endif %}
 {%- endif %}
 {%- if services.vault.enabled %}
-export VAULT_ADDR='http://{{ network_prefix }}.30:8200'
+export VAULT_ADDR='{{ vault_scheme }}://{{ network_prefix }}.30:8200'
+{%- if vault_tls %}
+export VAULT_CACERT='/ministack/tls/ca.pem'
+{%- endif %}
 export VAULT_TOKEN='{{ root_token }}'
 
 # call the vault api: vault_api <method> <path> [json body] [token]
@@ -79,7 +99,7 @@ if consul acl auth-method list -format=json | jq -e '.[] | select(.Name == "noma
   echo "[INFO] consul is already configured for nomad"
 else
   echo "[INFO] configuring consul for nomad workload identities..."
-  nomad setup consul -y -jwks-url "${NOMAD_ADDR}/.well-known/jwks.json"
+  nomad setup consul -y -jwks-url "${NOMAD_ADDR}/.well-known/jwks.json"{% if nomad_tls %} -jwks-ca-file /ministack/tls/ca.pem{% endif %}
 fi
 
 # local stack: allow all service mesh traffic, like without acl
@@ -146,7 +166,7 @@ if vault_api GET sys/auth | jq -e '.data["jwt-nomad/"]' > /dev/null; then
   echo "[INFO] vault is already configured for nomad"
 else
   echo "[INFO] configuring vault for nomad workload identities..."
-  nomad setup vault -y -jwks-url "${NOMAD_ADDR}/.well-known/jwks.json"
+  nomad setup vault -y -jwks-url "${NOMAD_ADDR}/.well-known/jwks.json"{% if nomad_tls %} -jwks-ca-file /ministack/tls/ca.pem{% endif %}
 fi
 {%- endif %}
 

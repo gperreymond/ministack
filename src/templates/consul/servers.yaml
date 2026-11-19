@@ -1,3 +1,14 @@
+{%- set nomad_tls = false -%}
+{%- if services.nomad.enabled -%}{%- if services.nomad.config.tls -%}{%- set nomad_tls = true -%}{%- endif -%}{%- endif -%}
+{%- set consul_tls = false -%}
+{%- if services.consul.enabled -%}{%- if services.consul.config.tls -%}{%- set consul_tls = true -%}{%- endif -%}{%- endif -%}
+{%- set vault_tls = false -%}
+{%- if services.vault.enabled -%}{%- if services.vault.config.tls -%}{%- set vault_tls = true -%}{%- endif -%}{%- endif -%}
+{%- set any_tls = nomad_tls or consul_tls or vault_tls -%}
+{%- set nomad_scheme = "http" -%}{%- if nomad_tls -%}{%- set nomad_scheme = "https" -%}{%- endif -%}
+{%- set consul_scheme = "http" -%}{%- set consul_port = 8500 -%}
+{%- if consul_tls -%}{%- set consul_scheme = "https" -%}{%- set consul_port = 8501 -%}{%- endif -%}
+{%- set vault_scheme = "http" -%}{%- if vault_tls -%}{%- set vault_scheme = "https" -%}{%- endif -%}
 {%- set nomad_acl = false -%}
 {%- if services.nomad.config.acl.enabled -%}{%- set nomad_acl = true -%}{%- endif -%}
 {%- set nomad_token = "11111111-1111-1111-1111-111111111111" -%}
@@ -26,7 +37,10 @@ services:
     privileged: 'true'
     environment:
       MINISTACK: 'true'
-      CONSUL_HTTP_ADDR: 'http://127.0.0.1:8500'
+      CONSUL_HTTP_ADDR: '{{ consul_scheme }}://127.0.0.1:{{ consul_port }}'
+      {%- if consul_tls %}
+      CONSUL_CACERT: '/ministack/tls/ca.pem'
+      {%- endif %}
       {%- if consul_acl %}
       CONSUL_HTTP_TOKEN: '{{ consul_token }}'
       {%- endif %}
@@ -38,7 +52,7 @@ services:
       - command: ['bash', '-c', 'for i in $$(seq 1 120); do systemctl is-system-running 2>/dev/null | grep -qE "running|degraded" && break; sleep 0.5; done; start-ministack']
     healthcheck:
       # healthy only when a leader is elected
-      test: ["CMD-SHELL", "curl -sf $${CONSUL_HTTP_ADDR}/v1/status/leader | grep -q ':'"]
+      test: ["CMD-SHELL", "curl -sfk $${CONSUL_HTTP_ADDR}/v1/status/leader | grep -q ':'"]
       interval: 5s
       timeout: 3s
       retries: 12
@@ -48,7 +62,7 @@ services:
     {%- if (loop.first and host_port) or item.ports %}
     ports:
       {%- if loop.first and host_port %}
-      - '127.0.0.1:{{ host_port }}:8500'
+      - '127.0.0.1:{{ host_port }}:{{ consul_port }}'
       {%- endif %}
       {%- if item.ports %}
       {%- for port in item.ports %}
@@ -72,6 +86,9 @@ services:
       - '../configurations/consul/config.hcl:/consul/config/config.hcl'
       - '../configurations/consul/server.hcl:/etc/consul.d/config/00-server.hcl'
       - '{{ item.name }}_consul_data:/consul/data'
+      {%- if any_tls %}
+      - '../tls:/ministack/tls:ro'
+      {%- endif %}
       # local volumes
       {%- if services.consul.config.server.local_volumes %}
       {%- for volume in services.consul.config.server.local_volumes %}

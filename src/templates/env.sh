@@ -1,3 +1,14 @@
+{%- set nomad_tls = false -%}
+{%- if services.nomad.enabled -%}{%- if services.nomad.config.tls -%}{%- set nomad_tls = true -%}{%- endif -%}{%- endif -%}
+{%- set consul_tls = false -%}
+{%- if services.consul.enabled -%}{%- if services.consul.config.tls -%}{%- set consul_tls = true -%}{%- endif -%}{%- endif -%}
+{%- set vault_tls = false -%}
+{%- if services.vault.enabled -%}{%- if services.vault.config.tls -%}{%- set vault_tls = true -%}{%- endif -%}{%- endif -%}
+{%- set any_tls = nomad_tls or consul_tls or vault_tls -%}
+{%- set nomad_scheme = "http" -%}{%- if nomad_tls -%}{%- set nomad_scheme = "https" -%}{%- endif -%}
+{%- set consul_scheme = "http" -%}{%- set consul_port = 8500 -%}
+{%- if consul_tls -%}{%- set consul_scheme = "https" -%}{%- set consul_port = 8501 -%}{%- endif -%}
+{%- set vault_scheme = "http" -%}{%- if vault_tls -%}{%- set vault_scheme = "https" -%}{%- endif -%}
 {%- set nomad_acl = false -%}
 {%- if services.nomad.config.acl.enabled -%}{%- set nomad_acl = true -%}{%- endif -%}
 {%- set nomad_token = "11111111-1111-1111-1111-111111111111" -%}
@@ -9,8 +20,6 @@
 {%- set network_subnet = "10.1.0.0" -%}
 {%- if network.subnet -%}{%- set network_subnet = network.subnet -%}{%- endif -%}
 {%- set network_prefix = network_subnet | split(pat=".") | slice(start=0, end=3) | join(sep=".") -%}
-{%- set nomad_scheme = "http" -%}
-{%- if services.nomad.config.tls -%}{%- set nomad_scheme = "https" -%}{%- endif -%}
 {%- set host_port = 4646 -%}
 {%- if services.nomad.config.server.host_port is defined -%}{%- set host_port = services.nomad.config.server.host_port -%}{%- endif -%}
 {%- set consul_host_port = 8500 -%}
@@ -31,8 +40,8 @@ export NOMAD_ADDR='{{ nomad_scheme }}://{{ network_prefix }}.11:4646'
 {%- if first_client.loop_index %}{%- set client_index = first_client.loop_index %}{%- endif %}
 export NOMAD_ADDR='{{ nomad_scheme }}://{{ network_prefix }}.{{ 100 + client_index }}:4646'
 {%- endif %}
-{%- if services.nomad.config.tls %}
-export NOMAD_SKIP_VERIFY='true'
+{%- if nomad_tls %}
+export NOMAD_CACERT='{{ ministack_dir }}/tls/ca.pem'
 {%- endif %}
 {%- if nomad_acl %}
 export NOMAD_TOKEN='{{ nomad_token }}'
@@ -40,9 +49,12 @@ export NOMAD_TOKEN='{{ nomad_token }}'
 {%- endif %}
 {%- if services.consul.enabled and services.consul.servers %}
 {%- if consul_host_port %}
-export CONSUL_HTTP_ADDR='http://127.0.0.1:{{ consul_host_port }}'
+export CONSUL_HTTP_ADDR='{{ consul_scheme }}://127.0.0.1:{{ consul_host_port }}'
 {%- else %}
-export CONSUL_HTTP_ADDR='http://{{ network_prefix }}.21:8500'
+export CONSUL_HTTP_ADDR='{{ consul_scheme }}://{{ network_prefix }}.21:{{ consul_port }}'
+{%- endif %}
+{%- if consul_tls %}
+export CONSUL_CACERT='{{ ministack_dir }}/tls/ca.pem'
 {%- endif %}
 {%- if consul_acl %}
 export CONSUL_HTTP_TOKEN='{{ consul_token }}'
@@ -50,9 +62,12 @@ export CONSUL_HTTP_TOKEN='{{ consul_token }}'
 {%- endif %}
 {%- if services.vault.enabled %}
 {%- if vault_host_port %}
-export VAULT_ADDR='http://127.0.0.1:{{ vault_host_port }}'
+export VAULT_ADDR='{{ vault_scheme }}://127.0.0.1:{{ vault_host_port }}'
 {%- else %}
-export VAULT_ADDR='http://{{ network_prefix }}.30:8200'
+export VAULT_ADDR='{{ vault_scheme }}://{{ network_prefix }}.30:8200'
+{%- endif %}
+{%- if vault_tls %}
+export VAULT_CACERT='{{ ministack_dir }}/tls/ca.pem'
 {%- endif %}
 export VAULT_TOKEN='{{ vault_root_token }}'
 {%- endif %}

@@ -1,0 +1,24 @@
+name: 'tls'
+datacenter: 'localhost'
+
+# consul + vault + nomad, everything over tls with certificates created by ministack
+# ca and certificates: .ministack/tls (kept between runs, deleted by --purge)
+services:
+  consul:
+    enabled: true
+    config:
+      tls: true
+    servers:
+      - name: 'consul'
+  vault:
+    enabled: true
+    config:
+      tls: true
+  nomad:
+    enabled: true
+    config:
+      tls: true
+    servers:
+      - name: 'server'
+    clients:
+      - name: 'worker'

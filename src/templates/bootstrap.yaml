@@ -1,3 +1,14 @@
+{%- set nomad_tls = false -%}
+{%- if services.nomad.enabled -%}{%- if services.nomad.config.tls -%}{%- set nomad_tls = true -%}{%- endif -%}{%- endif -%}
+{%- set consul_tls = false -%}
+{%- if services.consul.enabled -%}{%- if services.consul.config.tls -%}{%- set consul_tls = true -%}{%- endif -%}{%- endif -%}
+{%- set vault_tls = false -%}
+{%- if services.vault.enabled -%}{%- if services.vault.config.tls -%}{%- set vault_tls = true -%}{%- endif -%}{%- endif -%}
+{%- set any_tls = nomad_tls or consul_tls or vault_tls -%}
+{%- set nomad_scheme = "http" -%}{%- if nomad_tls -%}{%- set nomad_scheme = "https" -%}{%- endif -%}
+{%- set consul_scheme = "http" -%}{%- set consul_port = 8500 -%}
+{%- if consul_tls -%}{%- set consul_scheme = "https" -%}{%- set consul_port = 8501 -%}{%- endif -%}
+{%- set vault_scheme = "http" -%}{%- if vault_tls -%}{%- set vault_scheme = "https" -%}{%- endif -%}
 {%- set hashibase_repository = "ghcr.io/gperreymond/hashibase" -%}
 {%- if  hashibase.repository -%}{%- set hashibase_repository = hashibase.repository -%}{%- endif -%}
 {%- set hashibase_tag = "base-1.3.0" -%}
@@ -33,6 +44,9 @@ services:
       retries: 90
     volumes:
       - './scripts/bootstrap.sh:/ministack/bootstrap.sh:ro'
+      {%- if any_tls %}
+      - './tls:/ministack/tls:ro'
+      {%- endif %}
       {%- if vault_raft %}
       # unseal key and initial root token, keep it: without it the vault data is lost
       - 'vault_keys:/ministack/keys'

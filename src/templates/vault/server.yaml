@@ -1,3 +1,14 @@
+{%- set nomad_tls = false -%}
+{%- if services.nomad.enabled -%}{%- if services.nomad.config.tls -%}{%- set nomad_tls = true -%}{%- endif -%}{%- endif -%}
+{%- set consul_tls = false -%}
+{%- if services.consul.enabled -%}{%- if services.consul.config.tls -%}{%- set consul_tls = true -%}{%- endif -%}{%- endif -%}
+{%- set vault_tls = false -%}
+{%- if services.vault.enabled -%}{%- if services.vault.config.tls -%}{%- set vault_tls = true -%}{%- endif -%}{%- endif -%}
+{%- set any_tls = nomad_tls or consul_tls or vault_tls -%}
+{%- set nomad_scheme = "http" -%}{%- if nomad_tls -%}{%- set nomad_scheme = "https" -%}{%- endif -%}
+{%- set consul_scheme = "http" -%}{%- set consul_port = 8500 -%}
+{%- if consul_tls -%}{%- set consul_scheme = "https" -%}{%- set consul_port = 8501 -%}{%- endif -%}
+{%- set vault_scheme = "http" -%}{%- if vault_tls -%}{%- set vault_scheme = "https" -%}{%- endif -%}
 {%- set network_subnet = "10.1.0.0" -%}
 {%- if network.subnet -%}{%- set network_subnet = network.subnet -%}{%- endif -%}
 {%- set network_prefix = network_subnet | split(pat=".") | slice(start=0, end=3) | join(sep=".") -%}
@@ -34,17 +45,25 @@ services:
       - 'server'
       - '-dev'
       - '-dev-root-token-id={{ root_token }}'
+      {%- if vault_tls %}
+      # the tls listener on :8200 is in vault.hcl
+      - '-dev-listen-address=127.0.0.1:8210'
+      {%- else %}
       - '-dev-listen-address=0.0.0.0:8200'
+      {%- endif %}
     {%- endif %}
     cap_add:
       - 'IPC_LOCK'
     environment:
-      VAULT_ADDR: 'http://127.0.0.1:8200'
+      VAULT_ADDR: '{{ vault_scheme }}://127.0.0.1:8200'
+      {%- if vault_tls %}
+      VAULT_CACERT: '/ministack/tls/ca.pem'
+      {%- endif %}
       VAULT_TOKEN: '{{ root_token }}'
     healthcheck:
       {%- if raft %}
-      # the api answers, even sealed or not initialized (the bootstrap service unseals it)
-      test: ["CMD-SHELL", "wget -q -O /dev/null 'http://127.0.0.1:8200/v1/sys/health?sealedcode=200&uninitcode=200&standbyok=true'"]
+      # the api answers, even sealed or not initialized ('vault status' exit code 2), the bootstrap service unseals it
+      test: ["CMD-SHELL", "vault status > /dev/null 2>&1; [ $$? -ne 1 ]"]
       {%- else %}
       test: ["CMD", "vault", "status"]
       {%- endif %}
@@ -63,10 +82,15 @@ services:
       - '{{ label }}'
       {%- endfor %}
       {%- endif %}
-    {%- if raft %}
+    {%- if raft or vault_tls %}
     volumes:
       - '../configurations/vault/vault.hcl:/vault/config/vault.hcl:ro'
+      {%- if raft %}
       - 'vault_data:/vault/file'
+      {%- endif %}
+      {%- if vault_tls %}
+      - '../tls:/ministack/tls:ro'
+      {%- endif %}
     {%- endif %}
     networks:
       ministack:
