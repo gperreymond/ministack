@@ -201,9 +201,16 @@ Some details:
 ## Vault
 
 Enable vault, and nomad jobs can read vault secrets with their **workload identity** (no vault token in jobs).  
-Vault runs in **dev mode**: unsealed, root token `root`, kv v2 engine on `secret/`, and **in memory** (secrets are lost on `--stop`).  
-At every start, a `vault-bootstrap` service runs `nomad setup vault` (jwt auth method `jwt-nomad`, role `nomad-workloads`),
-and `--start` returns only when vault is ready for nomad.
+In both modes: root token `root`, kv v2 engine on `secret/`, and `--start` returns only when vault is ready for nomad
+(a `vault-bootstrap` service runs `nomad setup vault`: jwt auth method `jwt-nomad`, role `nomad-workloads`).
+
+| mode | storage | what happens at start |
+|---|---|---|
+| `dev` (default) | **in memory**, secrets are lost on `--stop` | vault starts unsealed |
+| `raft` | **persistent** (docker volume), secrets survive `--stop` | first start: init (1 unseal key); every start: auto unseal |
+
+In `raft` mode, the unseal key and the initial root token are kept in the `vault_keys` docker volume
+(`docker exec <datacenter>-vault-bootstrap cat /ministack/keys/init.json`). `--purge` deletes the vault data and its keys.
 
 ```sh
 $ ministack --config examples/vault/minimum/cluster.yaml --start
@@ -219,6 +226,7 @@ password from vault: ministack
 services:
   vault:
     enabled: true
+    # mode: 'raft'            # dev (default) or raft, see examples/vault/raft
     # version: '2.2.2'        # hashicorp/vault image tag
     # config:
     #   root_token: 'root'
