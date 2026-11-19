@@ -27,6 +27,19 @@ services:
       {%- if services.nomad.version %}
       NOMAD_VERSION: '{{ services.nomad.version }}'
       {%- endif %}
+      {%- if services.consul.enabled %}
+      CONSUL_HTTP_ADDR: 'http://127.0.0.1:8500'
+      {%- if services.consul.version %}
+      CONSUL_VERSION: '{{ services.consul.version }}'
+      {%- endif %}
+      {%- endif %}
+    {%- if services.consul.enabled and services.consul.servers %}
+    depends_on:
+      {%- for consul_server in services.consul.servers %}
+      {{ datacenter }}-{{ consul_server.name }}:
+        condition: 'service_healthy'
+      {%- endfor %}
+    {%- endif %}
     post_start:
       - command: 'start-ministack'
     healthcheck:
@@ -66,6 +79,11 @@ services:
       - '../configurations/nomad/server.hcl:/etc/nomad.d/config/00-server.hcl'
       - '{{ item.name }}_data:/nomad/data'
       - '{{ item.name }}_docker_data:/var/lib/docker'
+      {%- if services.consul.enabled %}
+      - '../configurations/consul/config.hcl:/consul/config/config.hcl'
+      - '../configurations/consul/client.hcl:/etc/consul.d/config/00-client.hcl'
+      - '{{ item.name }}_consul_data:/consul/data'
+      {%- endif %}
       # local volumes
       {%- if services.nomad.config.server.local_volumes %}
       {%- for volume in services.nomad.config.server.local_volumes %}
@@ -88,5 +106,8 @@ volumes:
   {%- for item in services.nomad.servers %}
   {{ item.name }}_data: {}
   {{ item.name }}_docker_data: {}
+  {%- if services.consul.enabled %}
+  {{ item.name }}_consul_data: {}
+  {%- endif %}
   {%- endfor %}
 {%- endif %}

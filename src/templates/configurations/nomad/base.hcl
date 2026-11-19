@@ -19,6 +19,15 @@ telemetry {
   publish_node_metrics = true
 }
 
+{%- if services.consul.enabled %}
+
+# local consul client agent: service registration, connect, auto join
+consul {
+  address      = "127.0.0.1:8500"
+  grpc_address = "127.0.0.1:8502"
+}
+{%- endif %}
+
 {%- if bind_addr == "eth0" %}
 bind_addr = "{{ `{{ GetInterfaceIP \"eth0\" }}` }}"
 {%- else %}
