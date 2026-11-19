@@ -1,0 +1,83 @@
+{%- set network_subnet = "10.1.0.0" -%}
+{%- if network.subnet -%}{%- set network_subnet = network.subnet -%}{%- endif -%}
+{%- set network_prefix = network_subnet | split(pat=".") | slice(start=0, end=3) | join(sep=".") -%}
+{%- set hashibase_repository = "ghcr.io/gperreymond/hashibase" -%}
+{%- if  hashibase.repository -%}{%- set hashibase_repository = hashibase.repository -%}{%- endif -%}
+{%- set hashibase_tag = "base-1.3.0" -%}
+{%- if  hashibase.tag -%}{%- set hashibase_tag = hashibase.tag -%}{%- endif -%}
+
+{%- if services.consul.enabled and services.consul.servers %}
+services:
+  {%- for item in services.consul.servers %}
+  {%- set node_number = 20 + loop.index %}
+  {%- set node_ip = network_prefix ~ "." ~ node_number %}
+  {{ datacenter }}-{{ item.name }}:
+    image: '{{ hashibase_repository }}:{{ hashibase_tag }}'
+    container_name: '{{ datacenter }}-{{ item.name }}'
+    hostname: '{{ datacenter }}-{{ item.name }}'
+    privileged: 'true'
+    environment:
+      MINISTACK: 'true'
+      CONSUL_HTTP_ADDR: 'http://127.0.0.1:8500'
+      {%- if services.consul.version %}
+      CONSUL_VERSION: '{{ services.consul.version }}'
+      {%- endif %}
+    post_start:
+      - command: 'start-ministack'
+    healthcheck:
+      # healthy only when a leader is elected
+      test: ["CMD-SHELL", "curl -sf $${CONSUL_HTTP_ADDR}/v1/status/leader | grep -q ':'"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+    {%- set host_port = 8500 %}
+    {%- if services.consul.config.server.host_port is defined %}{% set host_port = services.consul.config.server.host_port %}{% endif %}
+    {%- if (loop.first and host_port) or item.ports %}
+    ports:
+      {%- if loop.first and host_port %}
+      - '127.0.0.1:{{ host_port }}:8500'
+      {%- endif %}
+      {%- if item.ports %}
+      {%- for port in item.ports %}
+      - '{{ port }}'
+      {%- endfor %}
+      {%- endif %}
+    {%- endif %}
+    labels:
+      - 'ministack/consul=server'
+      {%- if services.consul.config.server.labels %}
+      {%- for label in services.consul.config.server.labels %}
+      - '{{ label }}'
+      {%- endfor %}
+      {%- endif %}
+      {%- if item.labels %}
+      {%- for label in item.labels %}
+      - '{{ label }}'
+      {%- endfor %}
+      {%- endif %}
+    volumes:
+      - '../configurations/consul/config.hcl:/consul/config/config.hcl'
+      - '../configurations/consul/server.hcl:/etc/consul.d/config/00-server.hcl'
+      - '{{ item.name }}_consul_data:/consul/data'
+      # local volumes
+      {%- if services.consul.config.server.local_volumes %}
+      {%- for volume in services.consul.config.server.local_volumes %}
+      - '../../{{ volume }}'
+      {%- endfor %}
+      {%- endif %}
+      {%- if item.local_volumes %}
+      {%- for volume in item.local_volumes %}
+      - '../../{{ volume }}'
+      {%- endfor %}
+      {%- endif %}
+    networks:
+      ministack:
+        ipv4_address: '{{ node_ip }}'
+  {%- endfor %}
+
+volumes:
+  {%- for item in services.consul.servers %}
+  {{ item.name }}_consul_data: {}
+  {%- endfor %}
+{%- endif %}

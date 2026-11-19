@@ -1,0 +1,14 @@
+name: 'consul-minimum'
+datacenter: 'localhost'
+
+services:
+  consul:
+    enabled: true
+    servers:
+      - name: 'consul'
+  nomad:
+    enabled: true
+    servers:
+      - name: 'server'
+    clients:
+      - name: 'worker'

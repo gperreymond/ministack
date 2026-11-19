@@ -148,6 +148,49 @@ services:
 
 ---
 
+## Consul
+
+Enable consul, and every nomad node (server and client) gets a consul client agent.  
+Nomad registers its services in consul, and the consul service mesh (connect + envoy sidecars) works out of the box.
+
+```sh
+$ ministack --config examples/consul/minimum/cluster.yaml --start
+$ eval "$(ministack --config examples/consul/minimum/cluster.yaml --env)"
+$ nomad job run examples/consul/minimum/jobs/countdash.hcl
+$ consul catalog services
+# the dashboard is on http://10.1.0.101:9002 (linux), consul ui on http://127.0.0.1:8500
+```
+
+```yaml
+name: 'consul-minimum'
+datacenter: 'localhost'
+
+services:
+  consul:
+    enabled: true
+    # version: '2.1.0'          # optional, another version is downloaded at start
+    # config:
+    #   log_level: 'info'
+    #   server:
+    #     bootstrap_expect: 1   # default: number of servers
+    #     host_port: 8500       # consul api/ui on 127.0.0.1, false to disable
+    servers:
+      - name: 'consul'
+  nomad:
+    enabled: true
+    servers:
+      - name: 'server'
+    clients:
+      - name: 'worker'
+```
+
+Some details:
+* Consul servers use the ip range `.21` to `.29` of the network, nomad servers `.11+`, nomad clients `.101+`.
+* Nomad nodes wait for the consul servers to be healthy (a leader is elected).
+* ACLs and TLS are disabled, this is a local development stack: all mesh traffic is allowed by default.
+
+---
+
 ## Some useful articles
 
 * https://developer.hashicorp.com/nomad/docs/configuration
