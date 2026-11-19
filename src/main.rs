@@ -68,9 +68,14 @@ fn main() {
         .get_matches();
 
     // Retrieve the config path and validate its existence
-    let config_path = matches.get_one::<String>("config").expect("Config path is required");
+    let config_path = matches
+        .get_one::<String>("config")
+        .expect("Config path is required");
     if !Path::new(config_path).exists() {
-        eprintln!("Error: Configuration file '{}' does not exist.", config_path);
+        eprintln!(
+            "Error: Configuration file '{}' does not exist.",
+            config_path
+        );
         std::process::exit(1);
     }
 
@@ -82,8 +87,10 @@ fn main() {
 
     // Load and validate the YAML configuration file, then render all templates
     let mut config_data = load_config(config_path);
-    fs::create_dir_all(&output_dir).unwrap_or_else(|_| panic!("Could not create directory: {}", output_dir.display()));
-    let ministack_dir = fs::canonicalize(&output_dir).expect("Failed to resolve the output directory");
+    fs::create_dir_all(&output_dir)
+        .unwrap_or_else(|_| panic!("Could not create directory: {}", output_dir.display()));
+    let ministack_dir =
+        fs::canonicalize(&output_dir).expect("Failed to resolve the output directory");
     // absolute path of the output directory, for the templates (ca file paths in env.sh)
     config_data.insert(
         "ministack_dir".to_string(),
@@ -98,7 +105,10 @@ fn main() {
 
     // Create the tls certificates before starting the cluster (or for a manual docker compose)
     let starting = matches.get_flag("start") || matches.get_flag("restart");
-    let only_rendering = !(starting || matches.get_flag("stop") || matches.get_flag("purge") || matches.get_flag("env"));
+    let only_rendering = !(starting
+        || matches.get_flag("stop")
+        || matches.get_flag("purge")
+        || matches.get_flag("env"));
     if starting || only_rendering {
         if !create_tls_certificates(&config_data, &ministack_dir) {
             std::process::exit(1);
@@ -159,7 +169,10 @@ fn is_docker_available() -> bool {
 // Load, validate and parse the configuration file, exit with every problem found
 fn load_config(file_path: &str) -> HashMap<String, Value> {
     let content = fs::read_to_string(file_path).unwrap_or_else(|e| {
-        eprintln!("Error: could not read the configuration file '{}': {}", file_path, e);
+        eprintln!(
+            "Error: could not read the configuration file '{}': {}",
+            file_path, e
+        );
         std::process::exit(1);
     });
     let config_dir = Path::new(file_path).parent().unwrap_or(Path::new("."));
@@ -172,7 +185,10 @@ fn load_config(file_path: &str) -> HashMap<String, Value> {
     });
     // the templates use the raw values, and the values computed from them (tls, acl, tokens, network...)
     let mut data: HashMap<String, Value> = serde_yaml::from_str(&content).unwrap_or_else(|e| {
-        eprintln!("Error: the configuration file '{}' is invalid: {}", file_path, e);
+        eprintln!(
+            "Error: the configuration file '{}' is invalid: {}",
+            file_path, e
+        );
         std::process::exit(1);
     });
     config.add_node_ips(&mut data);
@@ -196,15 +212,23 @@ fn create_tls_certificates(config_data: &HashMap<String, Value>, ministack_dir: 
     }
 
     let tls_dir = ministack_dir.join(TLS_DIR);
-    fs::create_dir_all(&tls_dir).unwrap_or_else(|_| panic!("Could not create directory: {}", tls_dir.display()));
+    fs::create_dir_all(&tls_dir)
+        .unwrap_or_else(|_| panic!("Could not create directory: {}", tls_dir.display()));
 
     // same image as the nodes
-    let computed = |key: &str| config_data.get(key).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+    let computed = |key: &str| {
+        config_data
+            .get(key)
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string()
+    };
     let repository = computed("hashibase_repository");
     let tag = computed("hashibase_tag");
 
     // run as the owner of the output directory, so the files stay removable by the user
-    let metadata = fs::metadata(ministack_dir).expect("Failed to read the output directory metadata");
+    let metadata =
+        fs::metadata(ministack_dir).expect("Failed to read the output directory metadata");
     let user = format!("{}:{}", metadata.uid(), metadata.gid());
 
     let status = ShellCommand::new("docker")
@@ -229,8 +253,12 @@ fn render_all_templates(config_data: &HashMap<String, Value>, output_dir: &Path)
     let mut generated_files = Vec::new();
 
     // clean the previous rendering, but keep the tls certificates (and their ca)
-    fs::create_dir_all(output_dir).unwrap_or_else(|_| panic!("Could not create directory: {}", output_dir.display()));
-    for entry in fs::read_dir(output_dir).expect("Failed to read the output directory").flatten() {
+    fs::create_dir_all(output_dir)
+        .unwrap_or_else(|_| panic!("Could not create directory: {}", output_dir.display()));
+    for entry in fs::read_dir(output_dir)
+        .expect("Failed to read the output directory")
+        .flatten()
+    {
         if entry.file_name() == TLS_DIR {
             continue;
         }
@@ -243,7 +271,12 @@ fn render_all_templates(config_data: &HashMap<String, Value>, output_dir: &Path)
     }
 
     // Traverse and render files recursively
-    traverse_and_render(&TEMPLATES_DIR, output_dir, config_data, &mut generated_files);
+    traverse_and_render(
+        &TEMPLATES_DIR,
+        output_dir,
+        config_data,
+        &mut generated_files,
+    );
 
     generated_files
 }
@@ -287,7 +320,9 @@ fn render_and_save_template(
     base_output_dir: &Path,
 ) {
     let template_path = file.path();
-    let template_content = file.contents_utf8().expect("Template file is not valid UTF-8");
+    let template_content = file
+        .contents_utf8()
+        .expect("Template file is not valid UTF-8");
 
     // Compute the relative path from the root of TEMPLATES_DIR
     let relative_path = template_path
@@ -340,7 +375,8 @@ fn render_template(template_content: &str, data: &HashMap<String, Value>) -> Str
 fn write_to_file(output_path: &str, content: &str) {
     let path = Path::new(output_path);
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).unwrap_or_else(|_| panic!("Could not create directory: {}", parent.display()));
+        fs::create_dir_all(parent)
+            .unwrap_or_else(|_| panic!("Could not create directory: {}", parent.display()));
     }
     fs::write(output_path, content)
         .unwrap_or_else(|_| panic!("Could not write to file at path: {}", output_path));
@@ -363,10 +399,20 @@ fn run_docker_compose(output_dir: &Path, args: &[&str]) -> bool {
         .arg(&compose_file)
         .args(args)
         .status()
-        .unwrap_or_else(|e| panic!("Failed to execute 'docker compose {}': {}", args.join(" "), e));
+        .unwrap_or_else(|e| {
+            panic!(
+                "Failed to execute 'docker compose {}': {}",
+                args.join(" "),
+                e
+            )
+        });
 
     if !status.success() {
-        eprintln!("Command 'docker compose {}' failed with status: {}", args.join(" "), status);
+        eprintln!(
+            "Command 'docker compose {}' failed with status: {}",
+            args.join(" "),
+            status
+        );
     }
     status.success()
 }
