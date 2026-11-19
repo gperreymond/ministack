@@ -8,9 +8,20 @@
 #![allow(dead_code)]
 
 use serde::Deserialize;
+use serde_yaml::Value;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::path::Path;
+
+// defaults, kept in one place
+const DEFAULT_HASHIBASE_REPOSITORY: &str = "ghcr.io/gperreymond/hashibase";
+const DEFAULT_HASHIBASE_TAG: &str = "base-1.3.0";
+const DEFAULT_SUBNET: &str = "10.1.0.0";
+const DEFAULT_NOMAD_TOKEN: &str = "11111111-1111-1111-1111-111111111111";
+const DEFAULT_CONSUL_TOKEN: &str = "22222222-2222-2222-2222-222222222222";
+const DEFAULT_VAULT_ROOT_TOKEN: &str = "root";
+const DEFAULT_VAULT_VERSION: &str = "2.2.2";
+const DEFAULT_VAULT_MODE: &str = "dev";
 
 // nomad servers are .11+, consul servers .21+, vault .30, nomad clients .101+
 const MAX_NOMAD_SERVERS: usize = 9;
@@ -211,6 +222,181 @@ pub struct NomadClient {
     pub labels: Option<Vec<String>>,
     pub local_volumes: Option<Vec<String>>,
     pub docker_volumes: Option<Vec<String>>,
+}
+
+// ------------------------------------------------------------------ computed values
+
+// a non empty string, as a tera condition would see it
+fn non_empty(value: Option<&String>) -> Option<&str> {
+    value.map(|v| v.as_str()).filter(|v| !v.is_empty())
+}
+
+// the host port as the templates use it: the configured value (a number or false), or the default
+fn host_port(port: Option<&HostPort>, default: u16) -> Value {
+    match port {
+        Some(HostPort::Port(port)) => Value::from(*port),
+        Some(HostPort::Flag(flag)) => Value::from(*flag),
+        None => Value::from(default),
+    }
+}
+
+// ip of a node: nomad servers .11+, consul servers .21+, vault .30, nomad clients .(100 + loop_index)
+const NOMAD_SERVER_BASE: u64 = 10;
+const CONSUL_SERVER_BASE: u64 = 20;
+const VAULT_NUMBER: u64 = 30;
+const NOMAD_CLIENT_BASE: u64 = 100;
+
+impl Config {
+    fn network_prefix(&self) -> String {
+        let subnet = non_empty(self.network.as_ref().and_then(|n| n.subnet.as_ref())).unwrap_or(DEFAULT_SUBNET);
+        subnet.split('.').take(3).collect::<Vec<_>>().join(".")
+    }
+
+    // ips of the nodes, in the order of the configuration
+    fn nomad_server_ips(&self) -> Vec<String> {
+        let prefix = self.network_prefix();
+        let servers = self.services.as_ref().and_then(|s| s.nomad.as_ref()).and_then(|n| n.servers.as_ref());
+        (1..=servers.map(|s| s.len()).unwrap_or(0) as u64)
+            .map(|index| format!("{}.{}", prefix, NOMAD_SERVER_BASE + index))
+            .collect()
+    }
+
+    fn consul_server_ips(&self) -> Vec<String> {
+        let prefix = self.network_prefix();
+        let servers = self.services.as_ref().and_then(|s| s.consul.as_ref()).and_then(|c| c.servers.as_ref());
+        (1..=servers.map(|s| s.len()).unwrap_or(0) as u64)
+            .map(|index| format!("{}.{}", prefix, CONSUL_SERVER_BASE + index))
+            .collect()
+    }
+
+    fn nomad_client_ips(&self) -> Vec<String> {
+        let prefix = self.network_prefix();
+        let clients = self.services.as_ref().and_then(|s| s.nomad.as_ref()).and_then(|n| n.clients.as_ref());
+        clients
+            .into_iter()
+            .flatten()
+            .enumerate()
+            .map(|(position, client)| {
+                let index = client.loop_index.unwrap_or(position as u64 + 1);
+                format!("{}.{}", prefix, NOMAD_CLIENT_BASE + index)
+            })
+            .collect()
+    }
+
+    // Add an 'ip' to every node of the raw configuration, for the loops of the templates
+    pub fn add_node_ips(&self, data: &mut HashMap<String, Value>) {
+        let nodes = [
+            ("nomad", "servers", self.nomad_server_ips()),
+            ("nomad", "clients", self.nomad_client_ips()),
+            ("consul", "servers", self.consul_server_ips()),
+        ];
+        for (service, kind, ips) in nodes {
+            let list = data
+                .get_mut("services")
+                .and_then(|s| s.get_mut(service))
+                .and_then(|s| s.get_mut(kind))
+                .and_then(|l| l.as_sequence_mut());
+            for (node, ip) in list.into_iter().flatten().zip(ips) {
+                if let Some(node) = node.as_mapping_mut() {
+                    node.insert(Value::from("ip"), Value::from(ip));
+                }
+            }
+        }
+    }
+
+    // Values derived from the configuration, given to every template as global variables
+    pub fn computed(&self) -> Vec<(&'static str, Value)> {
+        let services = self.services.as_ref();
+        let consul = services.and_then(|s| s.consul.as_ref());
+        let vault = services.and_then(|s| s.vault.as_ref());
+        let nomad = services.and_then(|s| s.nomad.as_ref());
+        let consul_config = consul.and_then(|c| c.config.as_ref());
+        let vault_config = vault.and_then(|v| v.config.as_ref());
+        let nomad_config = nomad.and_then(|n| n.config.as_ref());
+
+        let consul_enabled = consul.map(|c| c.enabled).unwrap_or(false);
+        let vault_enabled = vault.map(|v| v.enabled).unwrap_or(false);
+        let nomad_enabled = nomad.map(|n| n.enabled).unwrap_or(false);
+
+        // tls of a disabled service is ignored
+        let nomad_tls = nomad_enabled && nomad_config.map(|c| c.tls).unwrap_or(false);
+        let consul_tls = consul_enabled && consul_config.map(|c| c.tls).unwrap_or(false);
+        let vault_tls = vault_enabled && vault_config.map(|c| c.tls).unwrap_or(false);
+        let scheme = |tls: bool| if tls { "https" } else { "http" };
+
+        let nomad_acl_config = nomad_config.and_then(|c| c.acl.as_ref());
+        let consul_acl_config = consul_config.and_then(|c| c.acl.as_ref());
+        let nomad_acl = nomad_acl_config.map(|a| a.enabled).unwrap_or(false);
+        let consul_acl = consul_enabled && consul_acl_config.map(|a| a.enabled).unwrap_or(false);
+
+        let vault_mode = non_empty(vault.and_then(|v| v.mode.as_ref())).unwrap_or(DEFAULT_VAULT_MODE);
+        let vault_raft = vault_enabled && vault_mode == "raft";
+        let with_nomad = nomad_enabled && nomad.and_then(|n| n.servers.as_ref()).map(|s| !s.is_empty()).unwrap_or(false);
+        let needs_bootstrap = vault_raft || (with_nomad && (nomad_acl || consul_acl || vault_enabled));
+
+        let network_subnet = non_empty(self.network.as_ref().and_then(|n| n.subnet.as_ref())).unwrap_or(DEFAULT_SUBNET);
+        let network_prefix = self.network_prefix();
+        // first node of each kind: the address used by the bootstrap and env.sh
+        let first = |ips: Vec<String>| Value::from(ips.into_iter().next().unwrap_or_default());
+
+        let hashibase = self.hashibase.as_ref();
+        vec![
+            ("nomad_tls", Value::from(nomad_tls)),
+            ("consul_tls", Value::from(consul_tls)),
+            ("vault_tls", Value::from(vault_tls)),
+            ("any_tls", Value::from(nomad_tls || consul_tls || vault_tls)),
+            ("nomad_scheme", Value::from(scheme(nomad_tls))),
+            ("consul_scheme", Value::from(scheme(consul_tls))),
+            ("vault_scheme", Value::from(scheme(vault_tls))),
+            // consul http api port inside the cluster
+            ("consul_port", Value::from(if consul_tls { 8501 } else { 8500 })),
+            ("nomad_acl", Value::from(nomad_acl)),
+            ("consul_acl", Value::from(consul_acl)),
+            (
+                "nomad_token",
+                Value::from(non_empty(nomad_acl_config.and_then(|a| a.token.as_ref())).unwrap_or(DEFAULT_NOMAD_TOKEN)),
+            ),
+            (
+                "consul_token",
+                Value::from(non_empty(consul_acl_config.and_then(|a| a.token.as_ref())).unwrap_or(DEFAULT_CONSUL_TOKEN)),
+            ),
+            ("vault_mode", Value::from(vault_mode)),
+            ("vault_raft", Value::from(vault_raft)),
+            (
+                "vault_root_token",
+                Value::from(non_empty(vault_config.and_then(|c| c.root_token.as_ref())).unwrap_or(DEFAULT_VAULT_ROOT_TOKEN)),
+            ),
+            (
+                "vault_version",
+                Value::from(non_empty(vault.and_then(|v| v.version.as_ref())).unwrap_or(DEFAULT_VAULT_VERSION)),
+            ),
+            ("with_nomad", Value::from(with_nomad)),
+            ("needs_bootstrap", Value::from(needs_bootstrap)),
+            ("network_subnet", Value::from(network_subnet)),
+            ("vault_ip", Value::from(format!("{}.{}", network_prefix, VAULT_NUMBER))),
+            ("nomad_server_ip", first(self.nomad_server_ips())),
+            ("nomad_client_ip", first(self.nomad_client_ips())),
+            ("consul_server_ip", first(self.consul_server_ips())),
+            (
+                "hashibase_repository",
+                Value::from(non_empty(hashibase.and_then(|h| h.repository.as_ref())).unwrap_or(DEFAULT_HASHIBASE_REPOSITORY)),
+            ),
+            (
+                "hashibase_tag",
+                Value::from(non_empty(hashibase.and_then(|h| h.tag.as_ref())).unwrap_or(DEFAULT_HASHIBASE_TAG)),
+            ),
+            // published on the host: a port, or false
+            (
+                "nomad_host_port",
+                host_port(nomad_config.and_then(|c| c.server.as_ref()).and_then(|s| s.host_port.as_ref()), 4646),
+            ),
+            (
+                "consul_host_port",
+                host_port(consul_config.and_then(|c| c.server.as_ref()).and_then(|s| s.host_port.as_ref()), 8500),
+            ),
+            ("vault_host_port", host_port(vault_config.and_then(|c| c.host_port.as_ref()), 8200)),
+        ]
+    }
 }
 
 // ------------------------------------------------------------------ validation
@@ -595,6 +781,55 @@ services:
     fn same_client_ip_is_rejected() {
         let yaml = MINIMUM.replace("      - name: 'worker'\n", "      - name: 'worker'\n      - name: 'other'\n        loop_index: 1\n");
         assert!(errors(&yaml).iter().any(|e| e.contains("same ip")));
+    }
+
+    fn computed(yaml: &str) -> HashMap<&'static str, Value> {
+        validate(yaml, Path::new("examples")).unwrap().computed().into_iter().collect()
+    }
+
+    #[test]
+    fn computed_defaults() {
+        let values = computed(MINIMUM);
+        assert_eq!(values["nomad_scheme"], Value::from("http"));
+        assert_eq!(values["nomad_acl"], Value::from(false));
+        assert_eq!(values["nomad_token"], Value::from(DEFAULT_NOMAD_TOKEN));
+        assert_eq!(values["nomad_server_ip"], Value::from("10.1.0.11"));
+        assert_eq!(values["nomad_client_ip"], Value::from("10.1.0.101"));
+        assert_eq!(values["vault_ip"], Value::from("10.1.0.30"));
+        assert_eq!(values["nomad_host_port"], Value::from(4646));
+        assert_eq!(values["hashibase_tag"], Value::from(DEFAULT_HASHIBASE_TAG));
+        assert_eq!(values["needs_bootstrap"], Value::from(false));
+    }
+
+    #[test]
+    fn computed_secure_cluster() {
+        let yaml = format!(
+            "{}  consul:\n    config:\n      tls: true\nnetwork:\n  subnet: '10.1.20.0'\n",
+            MINIMUM.replace(
+                "    enabled: true\n",
+                "    enabled: true\n    config:\n      tls: true\n      acl:\n        enabled: true\n      server:\n        host_port: false\n",
+            )
+        );
+        let values = computed(&yaml);
+        assert_eq!(values["nomad_scheme"], Value::from("https"));
+        assert_eq!(values["nomad_server_ip"], Value::from("10.1.20.11"));
+        assert_eq!(values["nomad_host_port"], Value::from(false));
+        assert_eq!(values["needs_bootstrap"], Value::from(true));
+        // the tls of a disabled service is ignored
+        assert_eq!(values["consul_tls"], Value::from(false));
+        assert_eq!(values["consul_port"], Value::from(8500));
+    }
+
+    #[test]
+    fn node_ips_are_added() {
+        let yaml = MINIMUM.replace("      - name: 'worker'\n", "      - name: 'worker'\n      - name: 'other'\n        loop_index: 10\n");
+        let config = validate(&yaml, Path::new("examples")).unwrap();
+        let mut data: HashMap<String, Value> = serde_yaml::from_str(&yaml).unwrap();
+        config.add_node_ips(&mut data);
+        let nomad = &data["services"]["nomad"];
+        assert_eq!(nomad["servers"][0]["ip"], Value::from("10.1.0.11"));
+        assert_eq!(nomad["clients"][0]["ip"], Value::from("10.1.0.101"));
+        assert_eq!(nomad["clients"][1]["ip"], Value::from("10.1.0.110"));
     }
 
     #[test]

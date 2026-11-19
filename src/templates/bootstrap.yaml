@@ -1,31 +1,3 @@
-{%- set nomad_tls = false -%}
-{%- if services.nomad.enabled -%}{%- if services.nomad.config.tls -%}{%- set nomad_tls = true -%}{%- endif -%}{%- endif -%}
-{%- set consul_tls = false -%}
-{%- if services.consul.enabled -%}{%- if services.consul.config.tls -%}{%- set consul_tls = true -%}{%- endif -%}{%- endif -%}
-{%- set vault_tls = false -%}
-{%- if services.vault.enabled -%}{%- if services.vault.config.tls -%}{%- set vault_tls = true -%}{%- endif -%}{%- endif -%}
-{%- set any_tls = nomad_tls or consul_tls or vault_tls -%}
-{%- set nomad_scheme = "http" -%}{%- if nomad_tls -%}{%- set nomad_scheme = "https" -%}{%- endif -%}
-{%- set consul_scheme = "http" -%}{%- set consul_port = 8500 -%}
-{%- if consul_tls -%}{%- set consul_scheme = "https" -%}{%- set consul_port = 8501 -%}{%- endif -%}
-{%- set vault_scheme = "http" -%}{%- if vault_tls -%}{%- set vault_scheme = "https" -%}{%- endif -%}
-{%- set hashibase_repository = "ghcr.io/gperreymond/hashibase" -%}
-{%- if  hashibase.repository -%}{%- set hashibase_repository = hashibase.repository -%}{%- endif -%}
-{%- set hashibase_tag = "base-1.3.0" -%}
-{%- if  hashibase.tag -%}{%- set hashibase_tag = hashibase.tag -%}{%- endif -%}
-{%- set nomad_acl = false -%}
-{%- if services.nomad.config.acl.enabled -%}{%- set nomad_acl = true -%}{%- endif -%}
-{%- set consul_acl = false -%}
-{%- if services.consul.enabled -%}{%- if services.consul.config.acl.enabled -%}{%- set consul_acl = true -%}{%- endif -%}{%- endif -%}
-{%- set vault_mode = "dev" -%}
-{%- if services.vault.mode -%}{%- set vault_mode = services.vault.mode -%}{%- endif -%}
-{%- set with_nomad = false -%}
-{%- if services.nomad.enabled -%}{%- if services.nomad.servers -%}{%- set with_nomad = true -%}{%- endif -%}{%- endif -%}
-{%- set vault_raft = false -%}
-{%- if services.vault.enabled -%}{%- if vault_mode == "raft" -%}{%- set vault_raft = true -%}{%- endif -%}{%- endif -%}
-{%- set needs_bootstrap = vault_raft -%}
-{%- if with_nomad -%}{%- if nomad_acl or consul_acl or services.vault.enabled -%}{%- set needs_bootstrap = true -%}{%- endif -%}{%- endif -%}
-
 {%- if needs_bootstrap %}
 services:
   # one place for everything that needs the running cluster: nomad acl bootstrap,
