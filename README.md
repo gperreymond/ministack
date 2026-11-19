@@ -191,6 +191,39 @@ Some details:
 
 ---
 
+## Vault
+
+Enable vault, and nomad jobs can read vault secrets with their **workload identity** (no vault token in jobs).  
+Vault runs in **dev mode**: unsealed, root token `root`, kv v2 engine on `secret/`, and **in memory** (secrets are lost on `--stop`).  
+At every start, a `vault-bootstrap` service runs `nomad setup vault` (jwt auth method `jwt-nomad`, role `nomad-workloads`),
+and `--start` returns only when vault is ready for nomad.
+
+```sh
+$ ministack --config examples/vault/minimum/cluster.yaml --start
+$ eval "$(ministack --config examples/vault/minimum/cluster.yaml --env)"
+# no vault cli on your host? use: docker exec localhost-vault vault kv put ...
+$ vault kv put secret/default/vault-demo password=ministack
+$ nomad job run examples/vault/minimum/jobs/vault-demo.hcl
+$ nomad alloc logs -job vault-demo
+password from vault: ministack
+```
+
+```yaml
+services:
+  vault:
+    enabled: true
+    # version: '2.2.2'        # hashicorp/vault image tag
+    # config:
+    #   root_token: 'root'
+    #   host_port: 8200       # vault api/ui on 127.0.0.1, false to disable
+```
+
+A job gets access to `secret/data/<namespace>/<job_id>` and `secret/data/<namespace>/<job_id>/*` (policy created by `nomad setup vault`).
+
+The full stack (consul + vault + nomad) is in `examples/hashistack/cluster.yaml`.
+
+---
+
 ## Some useful articles
 
 * https://developer.hashicorp.com/nomad/docs/configuration

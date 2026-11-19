@@ -10,6 +10,12 @@ echo "[INFO] VAULT_VERSION.................. $VAULT_VERSION"
 echo "============================================================="
 echo ""
 
+# the post_start hook may run before systemd (pid 1) is ready
+for i in $(seq 1 120); do
+  systemctl is-system-running 2>/dev/null | grep -qE "running|degraded" && break
+  sleep 0.5
+done
+
 # make sure the requested version is installed (binaries are baked into the image,
 # a download only happens when the requested version differs)
 ensure_binary() {

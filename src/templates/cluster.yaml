@@ -14,6 +14,10 @@ include:
   {%- if services.consul.enabled and services.consul.servers %}
   - 'consul/servers.yaml'
   {%- endif %}
+  # VAULT
+  {%- if services.vault.enabled %}
+  - 'vault/server.yaml'
+  {%- endif %}
   # NOMAD
   {%- if services.nomad.servers %}
   - 'nomad/servers.yaml'

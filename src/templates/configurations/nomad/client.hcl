@@ -1,3 +1,6 @@
+{%- set network_subnet = "10.1.0.0" -%}
+{%- if network.subnet -%}{%- set network_subnet = network.subnet -%}{%- endif -%}
+{%- set network_prefix = network_subnet | split(pat=".") | slice(start=0, end=3) | join(sep=".") -%}
 {%- if 
   services.nomad.enabled and 
   services.nomad.clients
@@ -33,6 +36,13 @@ client {
   }
 }
 
+{%- if services.vault.enabled %}
+vault {
+  enabled = true
+  address = "http://{{ network_prefix }}.30:8200"
+}
+
+{% endif -%}
 plugin "docker" {
   config {
     allow_privileged = true
