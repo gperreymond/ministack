@@ -111,6 +111,17 @@ With TLS, `--env` also exports `NOMAD_CACERT`, `CONSUL_CACERT` and `VAULT_CACERT
 
 ## Cluster configuration details
 
+The configuration is validated before anything is rendered or started: an unknown key (e.g. `tsl: true`) or an inconsistent cluster is reported, with every problem at once.
+
+```
+Error: the configuration file 'cluster.yaml' is invalid:
+  - services.nomad.config: unknown field `tsl`, expected one of `acl`, `tls`, `bind_addr`, `log_level`, `server`, `client` at line 10 column 7
+  - services.vault.mode: 'raf' is unknown, use one of: dev, raft
+  - services.nomad.config.server.bootstrap_expect: 3 but 1 server(s) are defined, the cluster would never elect a leader
+```
+
+Checked: names (compose project, containers), unique node names and ips, `network.subnet`, `vault.mode`, acl tokens (uuid), `bootstrap_expect`, host ports, plugin files, clients without servers.
+
 This is the minimum configuration to have a fully working nomad server/client.  
 With this configuration and those command lines, you can start working with nomad.
 

@@ -8,6 +8,8 @@ use std::path::Path;
 use std::process::Command as ShellCommand;
 use tera::{Context, Tera};
 
+mod config;
+
 // Embed the "templates" directory into the binary
 static TEMPLATES_DIR: Dir = include_dir!("src/templates");
 
@@ -81,8 +83,8 @@ fn main() {
         .expect("Failed to determine parent directory of the config file")
         .join(".ministack");
 
-    // Load the YAML configuration file and render all templates
-    let mut config_data = load_yaml(config_path);
+    // Load and validate the YAML configuration file, then render all templates
+    let mut config_data = load_config(config_path);
     fs::create_dir_all(&output_dir).unwrap_or_else(|_| panic!("Could not create directory: {}", output_dir.display()));
     let ministack_dir = fs::canonicalize(&output_dir).expect("Failed to resolve the output directory");
     // absolute path of the output directory, for the templates (ca file paths in env.sh)
@@ -157,12 +159,25 @@ fn is_docker_available() -> bool {
     }
 }
 
-// Load and parse the YAML file
-fn load_yaml(file_path: &str) -> HashMap<String, Value> {
-    let content = fs::read_to_string(file_path)
-        .unwrap_or_else(|_| panic!("Could not read the file at path: {}", file_path));
-    serde_yaml::from_str(&content)
-        .unwrap_or_else(|_| panic!("Failed to parse YAML file at path: {}", file_path))
+// Load, validate and parse the configuration file, exit with every problem found
+fn load_config(file_path: &str) -> HashMap<String, Value> {
+    let content = fs::read_to_string(file_path).unwrap_or_else(|e| {
+        eprintln!("Error: could not read the configuration file '{}': {}", file_path, e);
+        std::process::exit(1);
+    });
+    let config_dir = Path::new(file_path).parent().unwrap_or(Path::new("."));
+    if let Err(errors) = config::validate(&content, config_dir) {
+        eprintln!("Error: the configuration file '{}' is invalid:", file_path);
+        for error in errors {
+            eprintln!("  - {}", error);
+        }
+        std::process::exit(1);
+    }
+    // the templates use the raw values
+    serde_yaml::from_str(&content).unwrap_or_else(|e| {
+        eprintln!("Error: the configuration file '{}' is invalid: {}", file_path, e);
+        std::process::exit(1);
+    })
 }
 
 // Run the generated scripts/tls.sh (empty when tls is disabled) in a hashibase container,
@@ -305,16 +320,24 @@ fn render_and_save_template(
 
 // Render a single template using Tera
 fn render_template(template_content: &str, data: &HashMap<String, Value>) -> String {
-    let mut tera = Tera::default();
-    tera.add_raw_template("template", template_content)
-        .expect("Failed to load the template");
-
     let mut context = Context::new();
     for (key, value) in data {
         context.insert(key, &value);
     }
-    tera.render("template", &context)
-        .unwrap_or_else(|e| panic!("Failed to render template: {}", e))
+    let mut tera = Tera::default();
+    tera.add_raw_template("template", template_content)
+        .and_then(|_| tera.render("template", &context))
+        .unwrap_or_else(|e| {
+            // the cause of a tera error is in its sources
+            let mut message = e.to_string();
+            let mut source = std::error::Error::source(&e);
+            while let Some(cause) = source {
+                message = format!("{}: {}", message, cause);
+                source = cause.source();
+            }
+            eprintln!("Error: {}", message);
+            std::process::exit(1);
+        })
 }
 
 // Write the rendered output to a file

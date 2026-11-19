@@ -24,6 +24,9 @@ jobs:
       - name: Build
         run: cargo build --locked
 
+      - name: Unit tests (configuration validation, every example is valid)
+        run: cargo test --locked
+
       - name: Render every example and validate the generated files
         run: |
           for config in $(git ls-files 'examples/*cluster.yaml'); do
