@@ -1,3 +1,15 @@
+{%- set nomad_acl = false -%}
+{%- if services.nomad.config.acl.enabled -%}{%- set nomad_acl = true -%}{%- endif -%}
+{%- set consul_acl = false -%}
+{%- if services.consul.enabled -%}{%- if services.consul.config.acl.enabled -%}{%- set consul_acl = true -%}{%- endif -%}{%- endif -%}
+{%- set vault_mode = "dev" -%}
+{%- if services.vault.mode -%}{%- set vault_mode = services.vault.mode -%}{%- endif -%}
+{%- set with_nomad = false -%}
+{%- if services.nomad.enabled -%}{%- if services.nomad.servers -%}{%- set with_nomad = true -%}{%- endif -%}{%- endif -%}
+{%- set vault_raft = false -%}
+{%- if services.vault.enabled -%}{%- if vault_mode == "raft" -%}{%- set vault_raft = true -%}{%- endif -%}{%- endif -%}
+{%- set needs_bootstrap = vault_raft -%}
+{%- if with_nomad -%}{%- if nomad_acl or consul_acl or services.vault.enabled -%}{%- set needs_bootstrap = true -%}{%- endif -%}{%- endif -%}
 {%- set network_subnet = "10.1.0.0" -%}
 {%- if network.subnet -%}{%- set network_subnet = network.subnet -%}{%- endif -%}
 
@@ -24,6 +36,10 @@ include:
   {%- endif %}
   {%- if services.nomad.clients %}
   - 'nomad/clients.yaml'
+  {%- endif %}
+  # BOOTSTRAP
+  {%- if needs_bootstrap %}
+  - 'bootstrap.yaml'
   {%- endif %}
   # PLUGINS
   {%- if plugins %}

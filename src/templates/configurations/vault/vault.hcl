@@ -4,7 +4,7 @@
 {%- set vault_mode = "dev" -%}
 {%- if services.vault.mode -%}{%- set vault_mode = services.vault.mode -%}{%- endif -%}
 {%- if services.vault.enabled and vault_mode == "raft" -%}
-# vault with persistent raft storage, initialized and unsealed by the vault-bootstrap service
+# vault with persistent raft storage, initialized and unsealed by the bootstrap service
 ui            = true
 disable_mlock = true
 

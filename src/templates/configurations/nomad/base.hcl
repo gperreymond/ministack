@@ -1,3 +1,11 @@
+{%- set nomad_acl = false -%}
+{%- if services.nomad.config.acl.enabled -%}{%- set nomad_acl = true -%}{%- endif -%}
+{%- set nomad_token = "11111111-1111-1111-1111-111111111111" -%}
+{%- if services.nomad.config.acl.token -%}{%- set nomad_token = services.nomad.config.acl.token -%}{%- endif -%}
+{%- set consul_acl = false -%}
+{%- if services.consul.enabled -%}{%- if services.consul.config.acl.enabled -%}{%- set consul_acl = true -%}{%- endif -%}{%- endif -%}
+{%- set consul_token = "22222222-2222-2222-2222-222222222222" -%}
+{%- if services.consul.config.acl.token -%}{%- set consul_token = services.consul.config.acl.token -%}{%- endif -%}
 {%- set log_level = "info" -%}
 {%- if  services.nomad.config.log_level -%}{%- set log_level = services.nomad.config.log_level -%}{%- endif -%}
 {%- set bind_addr = "eth0" -%}
@@ -18,6 +26,13 @@ telemetry {
   publish_allocation_metrics = true
   publish_node_metrics = true
 }
+{%- if nomad_acl %}
+
+# the management token is set by the bootstrap service (nomad acl bootstrap)
+acl {
+  enabled = true
+}
+{%- endif %}
 
 {%- if services.consul.enabled %}
 
@@ -25,6 +40,10 @@ telemetry {
 consul {
   address      = "127.0.0.1:8500"
   grpc_address = "127.0.0.1:8502"
+  {%- if consul_acl %}
+  # token of the nomad agent itself, local stack shortcut: the management token
+  token        = "{{ consul_token }}"
+  {%- endif %}
 }
 {%- endif %}
 

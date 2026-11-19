@@ -202,7 +202,7 @@ Some details:
 
 Enable vault, and nomad jobs can read vault secrets with their **workload identity** (no vault token in jobs).  
 In both modes: root token `root`, kv v2 engine on `secret/`, and `--start` returns only when vault is ready for nomad
-(a `vault-bootstrap` service runs `nomad setup vault`: jwt auth method `jwt-nomad`, role `nomad-workloads`).
+(the `bootstrap` service runs `nomad setup vault`: jwt auth method `jwt-nomad`, role `nomad-workloads`).
 
 | mode | storage | what happens at start |
 |---|---|---|
@@ -210,7 +210,7 @@ In both modes: root token `root`, kv v2 engine on `secret/`, and `--start` retur
 | `raft` | **persistent** (docker volume), secrets survive `--stop` | first start: init (1 unseal key); every start: auto unseal |
 
 In `raft` mode, the unseal key and the initial root token are kept in the `vault_keys` docker volume
-(`docker exec <datacenter>-vault-bootstrap cat /ministack/keys/init.json`). `--purge` deletes the vault data and its keys.
+(`docker exec <datacenter>-bootstrap cat /ministack/keys/init.json`). `--purge` deletes the vault data and its keys.
 
 ```sh
 $ ministack --config examples/vault/minimum/cluster.yaml --start
@@ -236,6 +236,44 @@ services:
 A job gets access to `secret/data/<namespace>/<job_id>` and `secret/data/<namespace>/<job_id>/*` (policy created by `nomad setup vault`).
 
 The full stack (consul + vault + nomad) is in `examples/hashistack/cluster.yaml`.
+
+---
+
+## ACL
+
+Nomad and consul ACLs can be enabled, independently. Like vault and its `root` token, each one gets a **known management token**
+(a uuid, change it with `token`), exported by `--env` and set inside every node, so the cli keeps working without any extra step.
+
+```yaml
+services:
+  consul:
+    enabled: true
+    config:
+      acl:
+        enabled: true
+        # token: '22222222-2222-2222-2222-222222222222'
+  nomad:
+    enabled: true
+    config:
+      acl:
+        enabled: true
+        # token: '11111111-1111-1111-1111-111111111111'
+```
+
+```sh
+$ ministack --config examples/acl/cluster.yaml --start
+$ eval "$(ministack --config examples/acl/cluster.yaml --env)"   # NOMAD_TOKEN, CONSUL_HTTP_TOKEN, VAULT_TOKEN
+$ nomad job run examples/consul/minimum/jobs/countdash.hcl
+```
+
+At every start, the `bootstrap` service (idempotent) does:
+* nomad: `nomad acl bootstrap` with the management token.
+* consul: `nomad setup consul` (jwt auth method `nomad-workloads`), so services and envoy sidecars get their consul tokens
+  through the nomad **workload identities**, and an intention `* -> *` allow, so the service mesh behaves like without ACL.
+* vault: as described above.
+
+Local stack shortcuts, not for production: every consul agent (and nomad agent) uses the consul management token,
+and the management tokens are written in the generated files.
 
 ---
 
