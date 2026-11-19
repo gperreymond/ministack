@@ -61,6 +61,8 @@ services:
       - '../configurations/nomad/client.hcl:/etc/nomad.d/config/00-client.hcl'
       - '{{ item.name }}_data:/nomad/data'
       - '{{ item.name }}_docker_data:/var/lib/docker'
+      # docker 29 uses the containerd image store, it can not live on the container overlay filesystem
+      - '{{ item.name }}_containerd_data:/var/lib/containerd'
       # local volumes
       {%- if services.nomad.config.client.local_volumes %}
       {%- for volume in services.nomad.config.client.local_volumes %}
@@ -94,6 +96,7 @@ volumes:
   {%- for item in services.nomad.clients %}
   {{ item.name }}_data: {}
   {{ item.name }}_docker_data: {}
+  {{ item.name }}_containerd_data: {}
   # docker volumes
   {%- if services.nomad.config.client.docker_volumes %}
   {%- for volume in services.nomad.config.client.docker_volumes %}
