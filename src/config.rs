@@ -248,14 +248,19 @@ const NOMAD_CLIENT_BASE: u64 = 100;
 
 impl Config {
     fn network_prefix(&self) -> String {
-        let subnet = non_empty(self.network.as_ref().and_then(|n| n.subnet.as_ref())).unwrap_or(DEFAULT_SUBNET);
+        let subnet = non_empty(self.network.as_ref().and_then(|n| n.subnet.as_ref()))
+            .unwrap_or(DEFAULT_SUBNET);
         subnet.split('.').take(3).collect::<Vec<_>>().join(".")
     }
 
     // ips of the nodes, in the order of the configuration
     fn nomad_server_ips(&self) -> Vec<String> {
         let prefix = self.network_prefix();
-        let servers = self.services.as_ref().and_then(|s| s.nomad.as_ref()).and_then(|n| n.servers.as_ref());
+        let servers = self
+            .services
+            .as_ref()
+            .and_then(|s| s.nomad.as_ref())
+            .and_then(|n| n.servers.as_ref());
         (1..=servers.map(|s| s.len()).unwrap_or(0) as u64)
             .map(|index| format!("{}.{}", prefix, NOMAD_SERVER_BASE + index))
             .collect()
@@ -263,7 +268,11 @@ impl Config {
 
     fn consul_server_ips(&self) -> Vec<String> {
         let prefix = self.network_prefix();
-        let servers = self.services.as_ref().and_then(|s| s.consul.as_ref()).and_then(|c| c.servers.as_ref());
+        let servers = self
+            .services
+            .as_ref()
+            .and_then(|s| s.consul.as_ref())
+            .and_then(|c| c.servers.as_ref());
         (1..=servers.map(|s| s.len()).unwrap_or(0) as u64)
             .map(|index| format!("{}.{}", prefix, CONSUL_SERVER_BASE + index))
             .collect()
@@ -271,7 +280,11 @@ impl Config {
 
     fn nomad_client_ips(&self) -> Vec<String> {
         let prefix = self.network_prefix();
-        let clients = self.services.as_ref().and_then(|s| s.nomad.as_ref()).and_then(|n| n.clients.as_ref());
+        let clients = self
+            .services
+            .as_ref()
+            .and_then(|s| s.nomad.as_ref())
+            .and_then(|n| n.clients.as_ref());
         clients
             .into_iter()
             .flatten()
@@ -329,12 +342,19 @@ impl Config {
         let nomad_acl = nomad_acl_config.map(|a| a.enabled).unwrap_or(false);
         let consul_acl = consul_enabled && consul_acl_config.map(|a| a.enabled).unwrap_or(false);
 
-        let vault_mode = non_empty(vault.and_then(|v| v.mode.as_ref())).unwrap_or(DEFAULT_VAULT_MODE);
+        let vault_mode =
+            non_empty(vault.and_then(|v| v.mode.as_ref())).unwrap_or(DEFAULT_VAULT_MODE);
         let vault_raft = vault_enabled && vault_mode == "raft";
-        let with_nomad = nomad_enabled && nomad.and_then(|n| n.servers.as_ref()).map(|s| !s.is_empty()).unwrap_or(false);
-        let needs_bootstrap = vault_raft || (with_nomad && (nomad_acl || consul_acl || vault_enabled));
+        let with_nomad = nomad_enabled
+            && nomad
+                .and_then(|n| n.servers.as_ref())
+                .map(|s| !s.is_empty())
+                .unwrap_or(false);
+        let needs_bootstrap =
+            vault_raft || (with_nomad && (nomad_acl || consul_acl || vault_enabled));
 
-        let network_subnet = non_empty(self.network.as_ref().and_then(|n| n.subnet.as_ref())).unwrap_or(DEFAULT_SUBNET);
+        let network_subnet = non_empty(self.network.as_ref().and_then(|n| n.subnet.as_ref()))
+            .unwrap_or(DEFAULT_SUBNET);
         let network_prefix = self.network_prefix();
         // first node of each kind: the address used by the bootstrap and env.sh
         let first = |ips: Vec<String>| Value::from(ips.into_iter().next().unwrap_or_default());
@@ -349,52 +369,89 @@ impl Config {
             ("consul_scheme", Value::from(scheme(consul_tls))),
             ("vault_scheme", Value::from(scheme(vault_tls))),
             // consul http api port inside the cluster
-            ("consul_port", Value::from(if consul_tls { 8501 } else { 8500 })),
+            (
+                "consul_port",
+                Value::from(if consul_tls { 8501 } else { 8500 }),
+            ),
             ("nomad_acl", Value::from(nomad_acl)),
             ("consul_acl", Value::from(consul_acl)),
             (
                 "nomad_token",
-                Value::from(non_empty(nomad_acl_config.and_then(|a| a.token.as_ref())).unwrap_or(DEFAULT_NOMAD_TOKEN)),
+                Value::from(
+                    non_empty(nomad_acl_config.and_then(|a| a.token.as_ref()))
+                        .unwrap_or(DEFAULT_NOMAD_TOKEN),
+                ),
             ),
             (
                 "consul_token",
-                Value::from(non_empty(consul_acl_config.and_then(|a| a.token.as_ref())).unwrap_or(DEFAULT_CONSUL_TOKEN)),
+                Value::from(
+                    non_empty(consul_acl_config.and_then(|a| a.token.as_ref()))
+                        .unwrap_or(DEFAULT_CONSUL_TOKEN),
+                ),
             ),
             ("vault_mode", Value::from(vault_mode)),
             ("vault_raft", Value::from(vault_raft)),
             (
                 "vault_root_token",
-                Value::from(non_empty(vault_config.and_then(|c| c.root_token.as_ref())).unwrap_or(DEFAULT_VAULT_ROOT_TOKEN)),
+                Value::from(
+                    non_empty(vault_config.and_then(|c| c.root_token.as_ref()))
+                        .unwrap_or(DEFAULT_VAULT_ROOT_TOKEN),
+                ),
             ),
             (
                 "vault_version",
-                Value::from(non_empty(vault.and_then(|v| v.version.as_ref())).unwrap_or(DEFAULT_VAULT_VERSION)),
+                Value::from(
+                    non_empty(vault.and_then(|v| v.version.as_ref()))
+                        .unwrap_or(DEFAULT_VAULT_VERSION),
+                ),
             ),
             ("with_nomad", Value::from(with_nomad)),
             ("needs_bootstrap", Value::from(needs_bootstrap)),
             ("network_subnet", Value::from(network_subnet)),
-            ("vault_ip", Value::from(format!("{}.{}", network_prefix, VAULT_NUMBER))),
+            (
+                "vault_ip",
+                Value::from(format!("{}.{}", network_prefix, VAULT_NUMBER)),
+            ),
             ("nomad_server_ip", first(self.nomad_server_ips())),
             ("nomad_client_ip", first(self.nomad_client_ips())),
             ("consul_server_ip", first(self.consul_server_ips())),
             (
                 "hashibase_repository",
-                Value::from(non_empty(hashibase.and_then(|h| h.repository.as_ref())).unwrap_or(DEFAULT_HASHIBASE_REPOSITORY)),
+                Value::from(
+                    non_empty(hashibase.and_then(|h| h.repository.as_ref()))
+                        .unwrap_or(DEFAULT_HASHIBASE_REPOSITORY),
+                ),
             ),
             (
                 "hashibase_tag",
-                Value::from(non_empty(hashibase.and_then(|h| h.tag.as_ref())).unwrap_or(DEFAULT_HASHIBASE_TAG)),
+                Value::from(
+                    non_empty(hashibase.and_then(|h| h.tag.as_ref()))
+                        .unwrap_or(DEFAULT_HASHIBASE_TAG),
+                ),
             ),
             // published on the host: a port, or false
             (
                 "nomad_host_port",
-                host_port(nomad_config.and_then(|c| c.server.as_ref()).and_then(|s| s.host_port.as_ref()), 4646),
+                host_port(
+                    nomad_config
+                        .and_then(|c| c.server.as_ref())
+                        .and_then(|s| s.host_port.as_ref()),
+                    4646,
+                ),
             ),
             (
                 "consul_host_port",
-                host_port(consul_config.and_then(|c| c.server.as_ref()).and_then(|s| s.host_port.as_ref()), 8500),
+                host_port(
+                    consul_config
+                        .and_then(|c| c.server.as_ref())
+                        .and_then(|s| s.host_port.as_ref()),
+                    8500,
+                ),
             ),
-            ("vault_host_port", host_port(vault_config.and_then(|c| c.host_port.as_ref()), 8200)),
+            (
+                "vault_host_port",
+                host_port(vault_config.and_then(|c| c.host_port.as_ref()), 8200),
+            ),
         ]
     }
 }
@@ -427,10 +484,9 @@ fn is_uuid(value: &str) -> bool {
     let groups: Vec<&str> = value.split('-').collect();
     let lengths = [8, 4, 4, 4, 12];
     groups.len() == lengths.len()
-        && groups
-            .iter()
-            .zip(lengths)
-            .all(|(group, length)| group.len() == length && group.chars().all(|c| c.is_ascii_hexdigit()))
+        && groups.iter().zip(lengths).all(|(group, length)| {
+            group.len() == length && group.chars().all(|c| c.is_ascii_hexdigit())
+        })
 }
 
 fn check(config: &Config, config_dir: &Path) -> Vec<String> {
@@ -487,9 +543,21 @@ fn check(config: &Config, config_dir: &Path) -> Vec<String> {
     let vault_enabled = vault.map(|v| v.enabled).unwrap_or(false);
     let nomad_enabled = nomad.map(|n| n.enabled).unwrap_or(false);
 
-    let consul_servers: Vec<&ConsulServer> = consul.and_then(|c| c.servers.as_ref()).into_iter().flatten().collect();
-    let nomad_servers: Vec<&NomadServer> = nomad.and_then(|n| n.servers.as_ref()).into_iter().flatten().collect();
-    let nomad_clients: Vec<&NomadClient> = nomad.and_then(|n| n.clients.as_ref()).into_iter().flatten().collect();
+    let consul_servers: Vec<&ConsulServer> = consul
+        .and_then(|c| c.servers.as_ref())
+        .into_iter()
+        .flatten()
+        .collect();
+    let nomad_servers: Vec<&NomadServer> = nomad
+        .and_then(|n| n.servers.as_ref())
+        .into_iter()
+        .flatten()
+        .collect();
+    let nomad_clients: Vec<&NomadClient> = nomad
+        .and_then(|n| n.clients.as_ref())
+        .into_iter()
+        .flatten()
+        .collect();
 
     let mut names: HashMap<&str, &str> = HashMap::new();
     if vault_enabled {
@@ -498,13 +566,28 @@ fn check(config: &Config, config_dir: &Path) -> Vec<String> {
     names.insert("bootstrap", "the bootstrap container");
     let mut nodes: Vec<(&str, &str)> = Vec::new();
     if consul_enabled {
-        nodes.extend(consul_servers.iter().map(|s| ("services.consul.servers", s.name.as_str())));
+        nodes.extend(
+            consul_servers
+                .iter()
+                .map(|s| ("services.consul.servers", s.name.as_str())),
+        );
     }
-    nodes.extend(nomad_servers.iter().map(|s| ("services.nomad.servers", s.name.as_str())));
-    nodes.extend(nomad_clients.iter().map(|c| ("services.nomad.clients", c.name.as_str())));
+    nodes.extend(
+        nomad_servers
+            .iter()
+            .map(|s| ("services.nomad.servers", s.name.as_str())),
+    );
+    nodes.extend(
+        nomad_clients
+            .iter()
+            .map(|c| ("services.nomad.clients", c.name.as_str())),
+    );
     for (path, name) in nodes {
         if !is_valid_name(name, true) {
-            errors.push(format!("{}: name '{}' must use letters, digits, '-' or '_'", path, name));
+            errors.push(format!(
+                "{}: name '{}' must use letters, digits, '-' or '_'",
+                path, name
+            ));
         }
         if let Some(other) = names.insert(name, path) {
             errors.push(format!(
@@ -527,9 +610,20 @@ fn check(config: &Config, config_dir: &Path) -> Vec<String> {
                 MAX_CONSUL_SERVERS
             ));
         }
-        check_acl(config.and_then(|c| c.acl.as_ref()), "services.consul.config.acl", &mut errors);
-        let expect = config.and_then(|c| c.server.as_ref()).and_then(|s| s.bootstrap_expect);
-        check_bootstrap_expect(expect, consul_servers.len(), "services.consul.config.server", &mut errors);
+        check_acl(
+            config.and_then(|c| c.acl.as_ref()),
+            "services.consul.config.acl",
+            &mut errors,
+        );
+        let expect = config
+            .and_then(|c| c.server.as_ref())
+            .and_then(|s| s.bootstrap_expect);
+        check_bootstrap_expect(
+            expect,
+            consul_servers.len(),
+            "services.consul.config.server",
+            &mut errors,
+        );
     }
 
     // ---- vault
@@ -559,7 +653,9 @@ fn check(config: &Config, config_dir: &Path) -> Vec<String> {
             .map(|r| !r.is_empty())
             .unwrap_or(false);
         if nomad_servers.is_empty() && nomad_clients.is_empty() {
-            errors.push("services.nomad: enabled, but no servers and no clients are defined".to_string());
+            errors.push(
+                "services.nomad: enabled, but no servers and no clients are defined".to_string(),
+            );
         }
         if nomad_servers.is_empty() && !nomad_clients.is_empty() && !client_retry_join {
             errors.push(
@@ -574,10 +670,21 @@ fn check(config: &Config, config_dir: &Path) -> Vec<String> {
                 MAX_NOMAD_SERVERS
             ));
         }
-        check_acl(config.and_then(|c| c.acl.as_ref()), "services.nomad.config.acl", &mut errors);
-        let expect = config.and_then(|c| c.server.as_ref()).and_then(|s| s.bootstrap_expect);
+        check_acl(
+            config.and_then(|c| c.acl.as_ref()),
+            "services.nomad.config.acl",
+            &mut errors,
+        );
+        let expect = config
+            .and_then(|c| c.server.as_ref())
+            .and_then(|s| s.bootstrap_expect);
         if !nomad_servers.is_empty() {
-            check_bootstrap_expect(expect, nomad_servers.len(), "services.nomad.config.server", &mut errors);
+            check_bootstrap_expect(
+                expect,
+                nomad_servers.len(),
+                "services.nomad.config.server",
+                &mut errors,
+            );
         }
 
         // clients ip: .(100 + loop_index), loop_index defaults to the position in the list
@@ -621,12 +728,17 @@ fn check(config: &Config, config_dir: &Path) -> Vec<String> {
         published.push(("services.consul.config.server.host_port", port, Some(8500)));
     }
     if vault_enabled {
-        let port = vault.and_then(|v| v.config.as_ref()).and_then(|c| c.host_port.as_ref());
+        let port = vault
+            .and_then(|v| v.config.as_ref())
+            .and_then(|c| c.host_port.as_ref());
         published.push(("services.vault.config.host_port", port, Some(8200)));
     }
     for (path, port, default) in published {
         if let Some(HostPort::Flag(true)) = port {
-            errors.push(format!("{}: must be a port number, or false to not publish it", path));
+            errors.push(format!(
+                "{}: must be a port number, or false to not publish it",
+                path
+            ));
             continue;
         }
         let port = match port {
@@ -635,7 +747,10 @@ fn check(config: &Config, config_dir: &Path) -> Vec<String> {
         };
         if let Some(port) = port {
             if let Some(other) = host_ports.insert(port, path) {
-                errors.push(format!("{}: the port {} is already published by {}", path, port, other));
+                errors.push(format!(
+                    "{}: the port {} is already published by {}",
+                    path, port, other
+                ));
             }
         }
     }
@@ -645,7 +760,13 @@ fn check(config: &Config, config_dir: &Path) -> Vec<String> {
         errors.push("services.nomad: nodes are defined but 'enabled: true' is missing".to_string());
     }
 
-    if external_network && config.network.as_ref().and_then(|n| n.subnet.as_ref()).is_some() {
+    if external_network
+        && config
+            .network
+            .as_ref()
+            .and_then(|n| n.subnet.as_ref())
+            .is_some()
+    {
         errors.push(
             "network: 'subnet' and 'external' can not be used together (an external network is created by another cluster)"
                 .to_string(),
@@ -666,7 +787,12 @@ fn check_acl(acl: Option<&Acl>, path: &str, errors: &mut Vec<String>) {
     }
 }
 
-fn check_bootstrap_expect(expect: Option<u64>, servers: usize, path: &str, errors: &mut Vec<String>) {
+fn check_bootstrap_expect(
+    expect: Option<u64>,
+    servers: usize,
+    path: &str,
+    errors: &mut Vec<String>,
+) {
     if let Some(expect) = expect {
         if expect == 0 || expect as usize > servers {
             errors.push(format!(
@@ -728,7 +854,10 @@ services:
 
     #[test]
     fn unknown_key_is_rejected() {
-        let yaml = MINIMUM.replace("    enabled: true\n", "    enabled: true\n    config:\n      tsl: true\n");
+        let yaml = MINIMUM.replace(
+            "    enabled: true\n",
+            "    enabled: true\n    config:\n      tsl: true\n",
+        );
         let errors = errors(&yaml);
         assert_eq!(errors.len(), 1);
         assert!(errors[0].contains("unknown field `tsl`"), "{}", errors[0]);
@@ -754,20 +883,39 @@ services:
             "  vault:\n    enabled: true\n    mode: 'file'\n  consul:\n    enabled: true\nnetwork:\n  subnet: '10.1.300.0'\n"
         );
         let errors = errors(&yaml);
-        for expected in ["must be a uuid", "bootstrap_expect", "mode: 'file'", "no servers", "network.subnet"] {
-            assert!(errors.iter().any(|e| e.contains(expected)), "{} not in {:?}", expected, errors);
+        for expected in [
+            "must be a uuid",
+            "bootstrap_expect",
+            "mode: 'file'",
+            "no servers",
+            "network.subnet",
+        ] {
+            assert!(
+                errors.iter().any(|e| e.contains(expected)),
+                "{} not in {:?}",
+                expected,
+                errors
+            );
         }
     }
 
     #[test]
     fn same_host_port_is_rejected() {
-        let yaml = format!("{}  vault:\n    enabled: true\n    config:\n      host_port: 4646\n", MINIMUM);
-        assert!(errors(&yaml).iter().any(|e| e.contains("already published")));
+        let yaml = format!(
+            "{}  vault:\n    enabled: true\n    config:\n      host_port: 4646\n",
+            MINIMUM
+        );
+        assert!(errors(&yaml)
+            .iter()
+            .any(|e| e.contains("already published")));
     }
 
     #[test]
     fn disabled_host_port_is_valid() {
-        let yaml = format!("{}  vault:\n    enabled: true\n    config:\n      host_port: false\n", MINIMUM);
+        let yaml = format!(
+            "{}  vault:\n    enabled: true\n    config:\n      host_port: false\n",
+            MINIMUM
+        );
         assert!(errors(&yaml).is_empty());
     }
 
@@ -779,12 +927,19 @@ services:
 
     #[test]
     fn same_client_ip_is_rejected() {
-        let yaml = MINIMUM.replace("      - name: 'worker'\n", "      - name: 'worker'\n      - name: 'other'\n        loop_index: 1\n");
+        let yaml = MINIMUM.replace(
+            "      - name: 'worker'\n",
+            "      - name: 'worker'\n      - name: 'other'\n        loop_index: 1\n",
+        );
         assert!(errors(&yaml).iter().any(|e| e.contains("same ip")));
     }
 
     fn computed(yaml: &str) -> HashMap<&'static str, Value> {
-        validate(yaml, Path::new("examples")).unwrap().computed().into_iter().collect()
+        validate(yaml, Path::new("examples"))
+            .unwrap()
+            .computed()
+            .into_iter()
+            .collect()
     }
 
     #[test]
@@ -822,7 +977,10 @@ services:
 
     #[test]
     fn node_ips_are_added() {
-        let yaml = MINIMUM.replace("      - name: 'worker'\n", "      - name: 'worker'\n      - name: 'other'\n        loop_index: 10\n");
+        let yaml = MINIMUM.replace(
+            "      - name: 'worker'\n",
+            "      - name: 'worker'\n      - name: 'other'\n        loop_index: 10\n",
+        );
         let config = validate(&yaml, Path::new("examples")).unwrap();
         let mut data: HashMap<String, Value> = serde_yaml::from_str(&yaml).unwrap();
         config.add_node_ips(&mut data);
