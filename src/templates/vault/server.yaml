@@ -1,0 +1,78 @@
+{%- set network_subnet = "10.1.0.0" -%}
+{%- if network.subnet -%}{%- set network_subnet = network.subnet -%}{%- endif -%}
+{%- set network_prefix = network_subnet | split(pat=".") | slice(start=0, end=3) | join(sep=".") -%}
+{%- set hashibase_repository = "ghcr.io/gperreymond/hashibase" -%}
+{%- if  hashibase.repository -%}{%- set hashibase_repository = hashibase.repository -%}{%- endif -%}
+{%- set hashibase_tag = "base-1.3.0" -%}
+{%- if  hashibase.tag -%}{%- set hashibase_tag = hashibase.tag -%}{%- endif -%}
+{%- set vault_version = "2.2.2" -%}
+{%- if services.vault.version -%}{%- set vault_version = services.vault.version -%}{%- endif -%}
+{%- set root_token = "root" -%}
+{%- if services.vault.config.root_token -%}{%- set root_token = services.vault.config.root_token -%}{%- endif -%}
+{%- set host_port = 8200 -%}
+{%- if services.vault.config.host_port is defined -%}{%- set host_port = services.vault.config.host_port -%}{%- endif -%}
+
+{%- if services.vault.enabled %}
+services:
+  # vault in dev mode: in memory, unsealed, known root token
+  {{ datacenter }}-vault:
+    image: 'hashicorp/vault:{{ vault_version }}'
+    container_name: '{{ datacenter }}-vault'
+    hostname: '{{ datacenter }}-vault'
+    command:
+      - 'server'
+      - '-dev'
+      - '-dev-root-token-id={{ root_token }}'
+      - '-dev-listen-address=0.0.0.0:8200'
+    cap_add:
+      - 'IPC_LOCK'
+    environment:
+      VAULT_ADDR: 'http://127.0.0.1:8200'
+      VAULT_TOKEN: '{{ root_token }}'
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 30s
+    {%- if host_port %}
+    ports:
+      - '127.0.0.1:{{ host_port }}:8200'
+    {%- endif %}
+    labels:
+      - 'ministack/vault=server'
+      {%- if services.vault.config.labels %}
+      {%- for label in services.vault.config.labels %}
+      - '{{ label }}'
+      {%- endfor %}
+      {%- endif %}
+    networks:
+      ministack:
+        ipv4_address: '{{ network_prefix }}.30'
+  {%- if services.nomad.enabled and services.nomad.servers %}
+
+  # configure the vault jwt auth method for the nomad workload identities, then stay
+  # alive and healthy ('docker compose up --wait' fails on exited containers)
+  {{ datacenter }}-vault-bootstrap:
+    image: '{{ hashibase_repository }}:{{ hashibase_tag }}'
+    container_name: '{{ datacenter }}-vault-bootstrap'
+    init: true
+    entrypoint: ['bash', '-c', 'bash /ministack/vault-bootstrap.sh && touch /tmp/ready && exec sleep infinity']
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/ready"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+    volumes:
+      - '../scripts/vault-bootstrap.sh:/ministack/vault-bootstrap.sh:ro'
+    depends_on:
+      {{ datacenter }}-vault:
+        condition: 'service_healthy'
+      {%- for item in services.nomad.servers %}
+      {{ datacenter }}-{{ item.name }}:
+        condition: 'service_healthy'
+      {%- endfor %}
+    networks:
+      ministack: {}
+  {%- endif %}
+{%- endif %}

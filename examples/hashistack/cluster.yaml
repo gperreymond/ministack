@@ -1,0 +1,16 @@
+name: 'hashistack'
+datacenter: 'localhost'
+
+services:
+  consul:
+    enabled: true
+    servers:
+      - name: 'consul'
+  vault:
+    enabled: true
+  nomad:
+    enabled: true
+    servers:
+      - name: 'server'
+    clients:
+      - name: 'worker'

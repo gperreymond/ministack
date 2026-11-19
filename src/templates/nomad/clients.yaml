@@ -35,15 +35,22 @@ services:
       CONSUL_VERSION: '{{ services.consul.version }}'
       {%- endif %}
       {%- endif %}
-    {%- if services.consul.enabled and services.consul.servers %}
+    {%- if (services.consul.enabled and services.consul.servers) or services.vault.enabled %}
     depends_on:
+      {%- if services.consul.enabled and services.consul.servers %}
       {%- for consul_server in services.consul.servers %}
       {{ datacenter }}-{{ consul_server.name }}:
         condition: 'service_healthy'
       {%- endfor %}
+      {%- endif %}
+      {%- if services.vault.enabled %}
+      {{ datacenter }}-vault:
+        condition: 'service_healthy'
+      {%- endif %}
     {%- endif %}
     post_start:
-      - command: 'start-ministack'
+      # wait for systemd (pid 1) to be up before installing and starting the services
+      - command: ['bash', '-c', 'for i in $$(seq 1 120); do systemctl is-system-running 2>/dev/null | grep -qE "running|degraded" && break; sleep 0.5; done; start-ministack']
     healthcheck:
       test: ["CMD-SHELL", "curl -sfk $${NOMAD_ADDR}/v1/agent/health > /dev/null"]
       interval: 5s

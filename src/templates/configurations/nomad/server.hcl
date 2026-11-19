@@ -1,3 +1,6 @@
+{%- set network_subnet = "10.1.0.0" -%}
+{%- if network.subnet -%}{%- set network_subnet = network.subnet -%}{%- endif -%}
+{%- set network_prefix = network_subnet | split(pat=".") | slice(start=0, end=3) | join(sep=".") -%}
 {%- if 
   services.nomad.enabled and 
   services.nomad.servers
@@ -40,4 +43,16 @@ client {
 autopilot {
   cleanup_dead_servers = true
 }
+{%- if services.vault.enabled %}
+
+# vault, through the nomad workload identities (see the vault-bootstrap service)
+vault {
+  enabled = true
+  address = "http://{{ network_prefix }}.30:8200"
+  default_identity {
+    aud = ["vault.io"]
+    ttl = "1h"
+  }
+}
+{%- endif %}
 {%- endif %}

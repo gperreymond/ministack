@@ -1,0 +1,12 @@
+name: 'vault-minimum'
+datacenter: 'localhost'
+
+services:
+  vault:
+    enabled: true
+  nomad:
+    enabled: true
+    servers:
+      - name: 'server'
+    clients:
+      - name: 'worker'
