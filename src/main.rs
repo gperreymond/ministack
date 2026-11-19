@@ -3,12 +3,19 @@ use include_dir::{include_dir, Dir, File};
 use serde_yaml::Value;
 use std::collections::HashMap;
 use std::fs;
+use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::process::Command as ShellCommand;
 use tera::{Context, Tera};
 
 // Embed the "templates" directory into the binary
 static TEMPLATES_DIR: Dir = include_dir!("src/templates");
+
+// keep in sync with the default image of the templates
+const DEFAULT_HASHIBASE_REPOSITORY: &str = "ghcr.io/gperreymond/hashibase";
+const DEFAULT_HASHIBASE_TAG: &str = "base-1.3.0";
+// tls certificates, inside the output directory, kept between two renderings
+const TLS_DIR: &str = "tls";
 
 fn main() {
     // Define CLI arguments
@@ -75,8 +82,29 @@ fn main() {
         .join(".ministack");
 
     // Load the YAML configuration file and render all templates
-    let config_data = load_yaml(config_path);
+    let mut config_data = load_yaml(config_path);
+    fs::create_dir_all(&output_dir).unwrap_or_else(|_| panic!("Could not create directory: {}", output_dir.display()));
+    let ministack_dir = fs::canonicalize(&output_dir).expect("Failed to resolve the output directory");
+    // absolute path of the output directory, for the templates (ca file paths in env.sh)
+    config_data.insert(
+        "ministack_dir".to_string(),
+        Value::String(ministack_dir.to_string_lossy().to_string()),
+    );
     render_all_templates(&config_data, &output_dir);
+
+    // Delete the certificates with the data of the cluster
+    if matches.get_flag("purge") {
+        fs::remove_dir_all(output_dir.join(TLS_DIR)).ok();
+    }
+
+    // Create the tls certificates before starting the cluster (or for a manual docker compose)
+    let starting = matches.get_flag("start") || matches.get_flag("restart");
+    let only_rendering = !(starting || matches.get_flag("stop") || matches.get_flag("purge") || matches.get_flag("env"));
+    if starting || only_rendering {
+        if !create_tls_certificates(&config_data, &ministack_dir) {
+            std::process::exit(1);
+        }
+    }
 
     // Print the environment variables, no docker needed
     if matches.get_flag("env") {
@@ -137,12 +165,71 @@ fn load_yaml(file_path: &str) -> HashMap<String, Value> {
         .unwrap_or_else(|_| panic!("Failed to parse YAML file at path: {}", file_path))
 }
 
+// Run the generated scripts/tls.sh (empty when tls is disabled) in a hashibase container,
+// the certificates are written into <output_dir>/tls, owned by the current user
+fn create_tls_certificates(config_data: &HashMap<String, Value>, ministack_dir: &Path) -> bool {
+    let script = ministack_dir.join("scripts").join("tls.sh");
+    let content = fs::read_to_string(&script).unwrap_or_default();
+    if content.trim().is_empty() {
+        return true;
+    }
+    if !is_docker_available() {
+        eprintln!("Error: 'docker' is needed to create the tls certificates.");
+        return false;
+    }
+
+    let tls_dir = ministack_dir.join(TLS_DIR);
+    fs::create_dir_all(&tls_dir).unwrap_or_else(|_| panic!("Could not create directory: {}", tls_dir.display()));
+
+    // same image as the nodes
+    let hashibase = config_data.get("hashibase");
+    let repository = hashibase
+        .and_then(|h| h.get("repository"))
+        .and_then(|v| v.as_str())
+        .unwrap_or(DEFAULT_HASHIBASE_REPOSITORY);
+    let tag = hashibase
+        .and_then(|h| h.get("tag"))
+        .and_then(|v| v.as_str())
+        .unwrap_or(DEFAULT_HASHIBASE_TAG);
+
+    // run as the owner of the output directory, so the files stay removable by the user
+    let metadata = fs::metadata(ministack_dir).expect("Failed to read the output directory metadata");
+    let user = format!("{}:{}", metadata.uid(), metadata.gid());
+
+    let status = ShellCommand::new("docker")
+        .args(["run", "--rm", "--user", &user, "--entrypoint", "bash"])
+        .arg("--volume")
+        .arg(format!("{}:/tls", tls_dir.display()))
+        .arg("--volume")
+        .arg(format!("{}:/ministack/tls.sh:ro", script.display()))
+        .arg(format!("{}:{}", repository, tag))
+        .arg("/ministack/tls.sh")
+        .status()
+        .unwrap_or_else(|e| panic!("Failed to execute 'docker run': {}", e));
+
+    if !status.success() {
+        eprintln!("Error: the tls certificates could not be created.");
+    }
+    status.success()
+}
+
 // Render all templates in the embedded directory, including subdirectories
 fn render_all_templates(config_data: &HashMap<String, Value>, output_dir: &Path) -> Vec<String> {
     let mut generated_files = Vec::new();
 
-    fs::remove_dir_all(output_dir).ok();
+    // clean the previous rendering, but keep the tls certificates (and their ca)
     fs::create_dir_all(output_dir).unwrap_or_else(|_| panic!("Could not create directory: {}", output_dir.display()));
+    for entry in fs::read_dir(output_dir).expect("Failed to read the output directory").flatten() {
+        if entry.file_name() == TLS_DIR {
+            continue;
+        }
+        let path = entry.path();
+        if path.is_dir() {
+            fs::remove_dir_all(&path).ok();
+        } else {
+            fs::remove_file(&path).ok();
+        }
+    }
 
     // Traverse and render files recursively
     traverse_and_render(&TEMPLATES_DIR, output_dir, config_data, &mut generated_files);

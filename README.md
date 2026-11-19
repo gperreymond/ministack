@@ -110,15 +110,12 @@ services:
     enabled: true
     version: '1.9.5'
     config:
-      # the api is served over https (see nomad/01-tls.hcl)
+      # tls certificates created by ministack (.ministack/tls)
       tls: true
       bind_addr: '{{ GetInterfaceIP \"eth0\" }}'
       log_level: 'info'
       server:
         bootstrap_expect: 3
-        local_volumes:
-          - 'certs:/certs'
-          - 'nomad/01-tls.hcl:/etc/nomad.d/config/01-tls.hcl'
         labels:
           - 'traefik.enable=true'
           - 'traefik.http.routers.nomad.rule=Host(`nomad.docker.localhost`)'
@@ -129,10 +126,6 @@ services:
         # retry_join:
         #   - 'provider=aws tag_key=... tag_value=...'
         #   - 'provider=azure tag_name=... tag_value=... tenant_id=... client_id=... subscription_id=... secret_access_key=...'
-      client:
-        local_volumes:
-          - 'certs:/certs'
-          - 'nomad/01-tls.hcl:/etc/nomad.d/config/01-tls.hcl'
     servers:
       - name: 'nomad-server-1a'
         labels:
@@ -274,6 +267,41 @@ At every start, the `bootstrap` service (idempotent) does:
 
 Local stack shortcuts, not for production: every consul agent (and nomad agent) uses the consul management token,
 and the management tokens are written in the generated files.
+
+---
+
+## TLS
+
+Nomad, consul and vault can be served over TLS, independently, with certificates **created by ministack**:
+
+```yaml
+services:
+  consul:
+    config:
+      tls: true    # https on the consul port (8500 on the host), grpc tls for envoy, mtls between agents
+  vault:
+    config:
+      tls: true    # https on 8200
+  nomad:
+    config:
+      tls: true    # https on 4646, mtls between agents
+```
+
+```sh
+$ ministack --config examples/tls/cluster.yaml --start
+$ eval "$(ministack --config examples/tls/cluster.yaml --env)"   # also NOMAD_CACERT, CONSUL_CACERT, VAULT_CACERT
+$ nomad node status && consul members && vault status
+```
+
+* Before starting, ministack runs `scripts/tls.sh` in a hashibase container: one CA (10 years) and the certificates of every node,
+  with their names and ips. They are in `.ministack/tls`, owned by you.
+* The CA is created once and kept, the certificates are recreated at every start (they always match the nodes).
+  `--purge` deletes them with the rest of the cluster data.
+* Inside the nodes, the CLIs are already configured (`*_ADDR` in https and `*_CACERT`).
+* Plain http is refused. The integrations follow: nomad talks to consul and vault over TLS,
+  `nomad setup consul/vault` give the CA to consul and vault to verify the nomad workload identities.
+
+The closest to production: `examples/secure/cluster.yaml` (ACL + TLS everywhere, persistent vault).
 
 ---
 

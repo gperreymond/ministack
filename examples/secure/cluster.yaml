@@ -1,0 +1,28 @@
+name: 'secure'
+datacenter: 'localhost'
+
+# closest to production: acl + tls everywhere, persistent vault
+services:
+  consul:
+    enabled: true
+    config:
+      acl:
+        enabled: true
+      tls: true
+    servers:
+      - name: 'consul'
+  vault:
+    enabled: true
+    mode: 'raft'
+    config:
+      tls: true
+  nomad:
+    enabled: true
+    config:
+      acl:
+        enabled: true
+      tls: true
+    servers:
+      - name: 'server'
+    clients:
+      - name: 'worker'
