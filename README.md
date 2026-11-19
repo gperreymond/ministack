@@ -37,7 +37,7 @@ Automatic usage:
 ```sh
 # start the cluster, and wait until every node is healthy
 $ ministack --config [path_to_your_config_yaml_file] --start
-# export NOMAD_ADDR (and NOMAD_SKIP_VERIFY when tls is enabled) in your shell
+# export the addresses, tokens and ca files of the cluster in your shell (NOMAD_*, CONSUL_*, VAULT_*)
 $ eval "$(ministack --config [path_to_your_config_yaml_file] --env)"
 $ nomad node status
 # recreate all containers
@@ -63,6 +63,47 @@ $ docker compose --file examples/europe-paris/.ministack/cluster.yaml down
 ```
 
 This approach is ideal if you want to add some docker compose services you created, or working on a customization of nomad files.
+
+---
+
+## Examples
+
+Every example starts with `ministack --config <example>/cluster.yaml --start`, then `eval "$(ministack --config <example>/cluster.yaml --env)"`.  
+From the simplest to the closest to production:
+
+| Example | Nomad | Consul | Vault | ACL | TLS | What it shows |
+|---|:-:|:-:|:-:|:-:|:-:|---|
+| [`nomad/minimum`](examples/nomad/minimum/cluster.yaml) | ✓ | | | | | 1 server, 1 client: the smallest working cluster |
+| [`nomad/minimum-external`](examples/nomad/minimum-external/cluster.yaml) | client | | | | | an extra client joining the `nomad/minimum` cluster, on its network |
+| [`consul/minimum`](examples/consul/minimum/cluster.yaml) | ✓ | ✓ | | | | consul service mesh (connect + envoy), with the [`countdash`](examples/consul/minimum/jobs/countdash.hcl) job |
+| [`vault/minimum`](examples/vault/minimum/cluster.yaml) | ✓ | | dev | | | vault secrets in jobs through workload identities, with the [`vault-demo`](examples/vault/minimum/jobs/vault-demo.hcl) job |
+| [`vault/raft`](examples/vault/raft/cluster.yaml) | ✓ | | raft | | | persistent vault, initialized and unsealed automatically |
+| [`hashistack`](examples/hashistack/cluster.yaml) | ✓ | ✓ | dev | | | the 3 tools together, without security |
+| [`acl`](examples/acl/cluster.yaml) | ✓ | ✓ | raft | ✓ | | nomad and consul ACLs, with known management tokens |
+| [`tls`](examples/tls/cluster.yaml) | ✓ | ✓ | dev | | ✓ | everything over TLS, certificates created by ministack |
+| [`secure`](examples/secure/cluster.yaml) | ✓ | ✓ | raft | ✓ | ✓ | **closest to production**: ACL + TLS + persistent vault |
+| [`europe-paris`](examples/europe-paris/cluster.yaml) | 3 servers | | | | nomad | multi servers, custom subnet, pinned nomad version, traefik plugin, prometheus jobs |
+
+The demo jobs work on every example that has the needed tools:
+
+```sh
+# consul service mesh: the dashboard reaches the api through envoy sidecars
+$ nomad job run examples/consul/minimum/jobs/countdash.hcl
+# vault secret read by a job with its workload identity
+$ vault kv put secret/default/vault-demo password=ministack
+$ nomad job run examples/vault/minimum/jobs/vault-demo.hcl
+$ nomad alloc logs -job vault-demo
+```
+
+What you get on your host (with the default ports):
+
+| | Address | Token (`--env`) |
+|---|---|---|
+| Nomad api / ui | `http(s)://127.0.0.1:4646` | `NOMAD_TOKEN` with ACL: `11111111-1111-1111-1111-111111111111` |
+| Consul api / ui | `http(s)://127.0.0.1:8500` | `CONSUL_HTTP_TOKEN` with ACL: `22222222-2222-2222-2222-222222222222` |
+| Vault api / ui | `http(s)://127.0.0.1:8200` | `VAULT_TOKEN`: `root` |
+
+With TLS, `--env` also exports `NOMAD_CACERT`, `CONSUL_CACERT` and `VAULT_CACERT` (the ministack ca in `.ministack/tls/ca.pem`).
 
 ---
 
