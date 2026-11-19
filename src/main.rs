@@ -1,11 +1,10 @@
-use clap::{Arg, Command};
+use clap::{Arg, ArgGroup, Command};
 use include_dir::{include_dir, Dir, File};
 use serde_yaml::Value;
 use std::collections::HashMap;
 use std::fs;
-use std::io::{BufRead, BufReader};
 use std::path::Path;
-use std::process::{Command as ShellCommand, Stdio};
+use std::process::Command as ShellCommand;
 use tera::{Context, Tera};
 
 // Embed the "templates" directory into the binary
@@ -13,8 +12,8 @@ static TEMPLATES_DIR: Dir = include_dir!("src/templates");
 
 fn main() {
     // Define CLI arguments
-    let matches = Command::new("Manage hashistack with only one binary.")
-        .version("1.2.2")
+    let matches = Command::new("ministack")
+        .version(env!("CARGO_PKG_VERSION"))
         .author("Gilles Perreymond <gperreymond@gmail.com>")
         .about("Manage hashistack with only one binary.")
         .arg(
@@ -29,27 +28,38 @@ fn main() {
             Arg::new("start")
                 .long("start")
                 .action(clap::ArgAction::SetTrue)
-                .help("Run 'docker compose up -d' for all generated files"),
+                .help("Run 'docker compose up -d --wait' and wait for the cluster to be healthy"),
         )
         .arg(
             Arg::new("restart")
                 .long("restart")
                 .action(clap::ArgAction::SetTrue)
-                .help("Run 'docker compose up -d --force-recreate' for all generated files"),
+                .help("Run 'docker compose up -d --wait --force-recreate'"),
         )
         .arg(
             Arg::new("stop")
                 .long("stop")
                 .action(clap::ArgAction::SetTrue)
-                .help("Run 'docker compose down' for all generated files"),
+                .help("Run 'docker compose down' (volumes are kept)"),
+        )
+        .arg(
+            Arg::new("purge")
+                .long("purge")
+                .action(clap::ArgAction::SetTrue)
+                .help("Run 'docker compose down --volumes' (all cluster data is deleted)"),
+        )
+        .arg(
+            Arg::new("env")
+                .long("env")
+                .action(clap::ArgAction::SetTrue)
+                .help("Print the environment variables to reach the cluster, usage: eval \"$(ministack -c <file> --env)\""),
+        )
+        .group(
+            ArgGroup::new("action")
+                .args(["start", "restart", "stop", "purge", "env"])
+                .multiple(false),
         )
         .get_matches();
-
-    // Verify that Docker is installed
-    if !is_docker_available() {
-        eprintln!("Error: 'docker' is not installed or not accessible in the PATH.");
-        std::process::exit(1);
-    }
 
     // Retrieve the config path and validate its existence
     let config_path = matches.get_one::<String>("config").expect("Config path is required");
@@ -64,33 +74,43 @@ fn main() {
         .expect("Failed to determine parent directory of the config file")
         .join(".ministack");
 
-    // Ensure the output directory exists
-    fs::create_dir_all(&output_dir).unwrap_or_else(|_| {
-        panic!(
-            "Could not create output directory: {}",
-            output_dir.display()
-        )
-    });
+    // Load the YAML configuration file and render all templates
+    let config_data = load_yaml(config_path);
+    render_all_templates(&config_data, &output_dir);
 
-    let start_services = matches.get_flag("start");
-    let restart_services = matches.get_flag("restart");
-    let stop_services = matches.get_flag("stop");
+    // Print the environment variables, no docker needed
+    if matches.get_flag("env") {
+        let env_file = output_dir.join("env.sh");
+        print!("{}", fs::read_to_string(&env_file).unwrap_or_default());
+        return;
+    }
 
-    // Restart Docker Compose services if requested
-    if restart_services {
-        start_docker_compose(true, &output_dir);
+    let compose_args: Option<&[&str]> = if matches.get_flag("start") {
+        Some(&["up", "-d", "--wait"])
+    } else if matches.get_flag("restart") {
+        Some(&["up", "-d", "--wait", "--force-recreate"])
+    } else if matches.get_flag("stop") {
+        Some(&["down"])
+    } else if matches.get_flag("purge") {
+        Some(&["down", "--volumes"])
     } else {
-        // Load and parse the YAML configuration file
-        let config_data = load_yaml(config_path);
-        // Render all templates
-        let _ = render_all_templates(&config_data, &output_dir);
-        // Start Docker Compose services if requested
-        if start_services {
-            start_docker_compose(false, &output_dir);
+        None
+    };
+
+    if let Some(args) = compose_args {
+        // Verify that Docker is installed
+        if !is_docker_available() {
+            eprintln!("Error: 'docker' is not installed or not accessible in the PATH.");
+            std::process::exit(1);
         }
-        // Stop Docker Compose services if requested
-        if stop_services {
-            stop_docker_compose(&output_dir);
+        let success = run_docker_compose(&output_dir, args);
+        if !success {
+            std::process::exit(1);
+        }
+        if args[0] == "up" {
+            println!();
+            println!("[INFO] cluster is ready, to use it from your shell:");
+            println!("  eval \"$(ministack --config {} --env)\"", config_path);
         }
     }
 }
@@ -99,6 +119,8 @@ fn main() {
 fn is_docker_available() -> bool {
     let status = ShellCommand::new("docker")
         .arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .status();
 
     match status {
@@ -178,7 +200,7 @@ fn render_and_save_template(
     let output_path = base_output_dir.join(relative_path);
 
     // Log the paths for debugging
-    println!(
+    eprintln!(
         "Rendering template: '{}', saving to '{}'",
         relative_path.display(),
         output_path.display()
@@ -218,9 +240,8 @@ fn write_to_file(output_path: &str, content: &str) {
         .unwrap_or_else(|_| panic!("Could not write to file at path: {}", output_path));
 }
 
-// Run `docker compose up -d` for all generated files
-fn start_docker_compose(force: bool, output_dir: &Path) {
-    let mut recreate: &str = "";
+// Run 'docker compose --file <output_dir>/cluster.yaml <args>', output is streamed to the terminal
+fn run_docker_compose(output_dir: &Path, args: &[&str]) -> bool {
     let compose_file = output_dir.join("cluster.yaml");
     if !compose_file.exists() {
         eprintln!(
@@ -230,86 +251,16 @@ fn start_docker_compose(force: bool, output_dir: &Path) {
         std::process::exit(1);
     }
 
-    if force == true {
-        recreate = "--force-recreate";
-        println!("Restarting Docker Compose services...");
-    } else {
-        println!("Starting Docker Compose services...");
-    }
-
-    let mut binding = ShellCommand::new("docker");
-    let mut command = binding
+    let status = ShellCommand::new("docker")
         .arg("compose")
         .arg("--file")
-        .arg(compose_file)
-        .arg("up")
-        .arg("-d");
-    if force {
-        command = command.arg(recreate);
-    }
-    let mut child = command
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("Failed to execute 'docker compose up -d'");
+        .arg(&compose_file)
+        .args(args)
+        .status()
+        .unwrap_or_else(|e| panic!("Failed to execute 'docker compose {}': {}", args.join(" "), e));
 
-    let stdout = child.stdout.take().expect("Could not capture stdout");
-    let stderr = child.stderr.take().expect("Could not capture stderr");
-
-    let stdout_reader = BufReader::new(stdout);
-    let stderr_reader = BufReader::new(stderr);
-
-    for line in stdout_reader.lines() {
-        println!("{}", line.unwrap());
-    }
-
-    for line in stderr_reader.lines() {
-        eprintln!("{}", line.unwrap());
-    }
-
-    let status = child.wait().expect("Failed to wait for command");
     if !status.success() {
-        eprintln!("Command failed with status: {}", status);
+        eprintln!("Command 'docker compose {}' failed with status: {}", args.join(" "), status);
     }
-}
-
-// Run `docker compose down` for all generated files
-fn stop_docker_compose(output_dir: &Path) {
-    let compose_file = output_dir.join("cluster.yaml");
-    if !compose_file.exists() {
-        eprintln!(
-            "Error: Docker Compose file '{}' does not exist.",
-            compose_file.display()
-        );
-        std::process::exit(1);
-    }
-
-    let mut command = ShellCommand::new("docker")
-        .arg("compose")
-        .arg("--file")
-        .arg(compose_file)
-        .arg("down")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("Failed to execute 'docker compose down'");
-
-    let stdout = command.stdout.take().expect("Could not capture stdout");
-    let stderr = command.stderr.take().expect("Could not capture stderr");
-
-    let stdout_reader = BufReader::new(stdout);
-    let stderr_reader = BufReader::new(stderr);
-
-    for line in stdout_reader.lines() {
-        println!("{}", line.unwrap());
-    }
-
-    for line in stderr_reader.lines() {
-        eprintln!("{}", line.unwrap());
-    }
-
-    let status = command.wait().expect("Failed to wait for command");
-    if !status.success() {
-        eprintln!("Command failed with status: {}", status);
-    }
+    status.success()
 }

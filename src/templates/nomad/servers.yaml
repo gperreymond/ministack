@@ -1,13 +1,18 @@
 {%- set network_subnet = "10.1.0.0" -%}
 {%- if network.subnet -%}{%- set network_subnet = network.subnet -%}{%- endif -%}
+{%- set network_prefix = network_subnet | split(pat=".") | slice(start=0, end=3) | join(sep=".") -%}
 {%- set hashibase_repository = "ghcr.io/gperreymond/hashibase" -%}
 {%- if  hashibase.repository -%}{%- set hashibase_repository = hashibase.repository -%}{%- endif -%}
-{%- set hashibase_tag = "base-1.2.0" -%}
+{%- set hashibase_tag = "base-1.3.0" -%}
 {%- if  hashibase.tag -%}{%- set hashibase_tag = hashibase.tag -%}{%- endif -%}
+{%- set nomad_scheme = "http" -%}
+{%- if services.nomad.config.tls -%}{%- set nomad_scheme = "https" -%}{%- endif -%}
 
 {%- if services.nomad.servers %}
 services:
   {%- for item in services.nomad.servers %}
+  {%- set node_number = 10 + loop.index %}
+  {%- set node_ip = network_prefix ~ "." ~ node_number %}
   {{ datacenter }}-{{ item.name }}:
     image: '{{ hashibase_repository }}:{{ hashibase_tag }}'
     container_name: '{{ datacenter }}-{{ item.name }}'
@@ -15,17 +20,34 @@ services:
     privileged: 'true'
     environment:
       MINISTACK: 'true'
+      NOMAD_ADDR: '{{ nomad_scheme }}://{{ node_ip }}:4646'
+      {%- if services.nomad.config.tls %}
+      NOMAD_SKIP_VERIFY: 'true'
+      {%- endif %}
       {%- if services.nomad.version %}
       NOMAD_VERSION: '{{ services.nomad.version }}'
       {%- endif %}
     post_start:
       - command: 'start-ministack'
     healthcheck:
-      test: ["CMD", "nomad-is-ready"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+      test: ["CMD-SHELL", "curl -sfk $${NOMAD_ADDR}/v1/agent/health > /dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+    {%- set host_port = 4646 %}
+    {%- if services.nomad.config.server.host_port is defined %}{% set host_port = services.nomad.config.server.host_port %}{% endif %}
+    {%- if (loop.first and host_port) or item.ports %}
+    ports:
+      {%- if loop.first and host_port %}
+      - '127.0.0.1:{{ host_port }}:4646'
+      {%- endif %}
+      {%- if item.ports %}
+      {%- for port in item.ports %}
+      - '{{ port }}'
+      {%- endfor %}
+      {%- endif %}
+    {%- endif %}
     labels:
       - 'ministack/nomad=server'
       {%- if services.nomad.config.server.labels %}
@@ -57,7 +79,7 @@ services:
       {%- endif %}
     networks:
       ministack:
-        ipv4_address: '{{ network_subnet | split(pat=".") | slice(start=0, end=3) | join(sep=".") }}.{{ 10 + loop.index }}'
+        ipv4_address: '{{ node_ip }}'
   {%- endfor %}
 {%- endif %}
 

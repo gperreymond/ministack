@@ -10,31 +10,82 @@ echo "[INFO] VAULT_VERSION.................. $VAULT_VERSION"
 echo "============================================================="
 echo ""
 
-# function to check if a directory contains configuration files
+# make sure the requested version is installed (binaries are baked into the image,
+# a download only happens when the requested version differs)
+ensure_binary() {
+  local service=$1
+  local version=$2
+  local current=""
+  if command -v "$service" > /dev/null; then
+    current=$("$service" version | head -n 1 | sed -E 's/^[A-Za-z]+ v([^ ]+).*/\1/')
+  fi
+  if [ "$current" != "$version" ]; then
+    install-hashicorp-binary "$service" "$version"
+  else
+    echo "[INFO] $service $version already installed"
+  fi
+}
+
+# write the systemd unit for a service
+write_unit() {
+  local service=$1
+  local exec_start=$2
+  local after=$3
+  cat > "/etc/systemd/system/$service.service" <<UNIT
+[Unit]
+Description=$service
+Wants=network-online.target $after
+After=network-online.target $after
+
+[Service]
+ExecStart=$exec_start
+ExecReload=/bin/kill -HUP \$MAINPID
+KillMode=process
+KillSignal=SIGINT
+LimitNOFILE=65536
+LimitNPROC=infinity
+Restart=on-failure
+RestartSec=2
+TasksMax=infinity
+OOMScoreAdjust=-1000
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+}
+
+# start a service only if its configuration directory contains files
 start_if_config_exists() {
   local service=$1
   local config_dir=$2
   local version=$3
   if [ -d "$config_dir" ] && [ "$(ls -A "$config_dir")" ]; then
     echo "[INFO] Configuration files found for $service. Starting $service..."
-    hashi-up $service install --local --version $version --skip-start --config-file $config_dir/config.hcl
-    sed -i 's/^User=consul/User=root/' /etc/systemd/system/$service.service
-    sed -i 's/^Group=consul/Group=root/' /etc/systemd/system/$service.service
-    sed -i 's/^User=nomad/User=root/' /etc/systemd/system/$service.service
-    sed -i 's/^Group=nomad/Group=root/' /etc/systemd/system/$service.service
-    sed -i 's/^User=vault/User=root/' /etc/systemd/system/$service.service
-    sed -i 's/^Group=vault/Group=root/' /etc/systemd/system/$service.service
-    systemctl enable $service.service
-    systemctl start $service
+    ensure_binary "$service" "$version"
+    mkdir -p "/etc/$service.d/config"
+    case $service in
+      nomad)
+        write_unit nomad "/usr/local/bin/nomad agent -config=$config_dir -config=/etc/nomad.d/config" "docker.service"
+        ;;
+      consul)
+        write_unit consul "/usr/local/bin/consul agent -config-dir=$config_dir -config-dir=/etc/consul.d/config" ""
+        ;;
+      vault)
+        write_unit vault "/usr/local/bin/vault server -config=$config_dir -config=/etc/vault.d/config" ""
+        ;;
+    esac
+    systemctl daemon-reload
+    systemctl enable "$service.service"
+    systemctl restart "$service"
   else
     echo "[WARN] No configuration files found for $service. Skipping $service..."
   fi
 }
 
 # start Vault if config files exist
-start_if_config_exists "vault" "/vault/config" $VAULT_VERSION
+start_if_config_exists "vault" "/vault/config" "$VAULT_VERSION"
 # start Consul if config files exist
-start_if_config_exists "consul" "/consul/config" $CONSUL_VERSION
+start_if_config_exists "consul" "/consul/config" "$CONSUL_VERSION"
 # start Nomad if config files exist
-start_if_config_exists "nomad" "/nomad/config" $NOMAD_VERSION
+start_if_config_exists "nomad" "/nomad/config" "$NOMAD_VERSION"
 echo ""

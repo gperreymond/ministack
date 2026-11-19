@@ -1,11 +1,4 @@
 #!/bin/bash
 
-# loop until the Nomad service is running
-while true; do
-  status=$(systemctl is-active nomad)
-  if [ "$status" == "active" ]; then
-    break
-  fi
-  echo "[WARN] waiting for Nomad to start..."
-  sleep 1  # wait for 1 seconds before checking again
-done
+# one-shot readiness check of the local Nomad agent (usable as a healthcheck)
+curl -sfk "${NOMAD_ADDR:-http://127.0.0.1:4646}/v1/agent/health" > /dev/null

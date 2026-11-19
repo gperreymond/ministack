@@ -28,9 +28,25 @@ $ curl -fsSL https://raw.githubusercontent.com/gperreymond/ministack/main/instal
 
 Automatic usage:
 ```sh
+# start the cluster, and wait until every node is healthy
 $ ministack --config [path_to_your_config_yaml_file] --start
+# export NOMAD_ADDR (and NOMAD_SKIP_VERIFY when tls is enabled) in your shell
+$ eval "$(ministack --config [path_to_your_config_yaml_file] --env)"
+$ nomad node status
+# recreate all containers
+$ ministack --config [path_to_your_config_yaml_file] --restart
+# stop the cluster, data is kept
 $ ministack --config [path_to_your_config_yaml_file] --stop
+# stop the cluster, and delete all its data (docker volumes)
+$ ministack --config [path_to_your_config_yaml_file] --purge
 ```
+
+Some details:
+* The nomad api of the first server is published on `127.0.0.1:4646` (change it with `services.nomad.config.server.host_port`, or disable it with `false`). It works on Linux and macOS.
+* Inside every node, `NOMAD_ADDR` is already set, so `docker exec <node> nomad status` just works.
+* Nodes are healthy only when the nomad api answers `/v1/agent/health` (a leader is elected, clients are registered).
+* Nomad and Consul binaries are baked into the `hashibase` image (amd64 and arm64). Setting `services.nomad.version` to another version downloads it at container start.
+* Extra ports can be published per node with `ports`, for example `ports: ['8080:8080']`.
 
 But you can also, only generate the docker compose files, and manage manually:
 ```sh
@@ -87,6 +103,8 @@ services:
     enabled: true
     version: '1.9.5'
     config:
+      # the api is served over https (see nomad/01-tls.hcl)
+      tls: true
       bind_addr: '{{ GetInterfaceIP \"eth0\" }}'
       log_level: 'info'
       server:

@@ -2,8 +2,12 @@ ARG UBUNTU_JAMMY_IMAGE="ubuntu:jammy-20240911.1"
 
 FROM ${UBUNTU_JAMMY_IMAGE} AS hashibase
 
-ARG CONSUL_CNI_PLUGINS_VERSION="1.6.1"
-ARG CNI_PLUGINS_VERSION="1.6.2"
+# set automatically by buildx (amd64, arm64)
+ARG TARGETARCH
+ARG CONSUL_CNI_PLUGINS_VERSION="2.1.0"
+ARG CNI_PLUGINS_VERSION="1.10.0"
+ARG NOMAD_VERSION="2.1.1"
+ARG CONSUL_VERSION="2.1.0"
 
 # copy files
 COPY scripts/consul-is-ready /usr/local/bin/consul-is-ready
@@ -11,6 +15,7 @@ COPY scripts/nomad-is-ready /usr/local/bin/nomad-is-ready
 COPY scripts/start-ministack /usr/local/bin/start-ministack
 COPY scripts/entrypoint /usr/local/bin/entrypoint
 COPY scripts/clean-install /usr/local/bin/clean-install
+COPY scripts/install-hashicorp-binary /usr/local/bin/install-hashicorp-binary
 COPY files/bridge.conf /etc/sysctl.d/bridge.conf
 
 # Install dependencies, first from apt, then from release tarballs.
@@ -39,6 +44,7 @@ RUN echo "Ensuring scripts are executable ..." \
     /usr/local/bin/consul-is-ready \
     /usr/local/bin/nomad-is-ready \
     /usr/local/bin/start-ministack \
+    /usr/local/bin/install-hashicorp-binary \
   && echo "Installing Packages ..." \
     && DEBIAN_FRONTEND=noninteractive clean-install \
       systemd \
@@ -87,19 +93,19 @@ RUN sh -c "echo 'deb https://download.docker.com/linux/ubuntu jammy stable' > /e
     systemctl enable docker.service
 
 # install containernetworking-plugins
-RUN curl -LO "https://github.com/containernetworking/plugins/releases/download/v${CNI_PLUGINS_VERSION}/cni-plugins-linux-amd64-v${CNI_PLUGINS_VERSION}.tgz" && \
+RUN curl -fsSLO "https://github.com/containernetworking/plugins/releases/download/v${CNI_PLUGINS_VERSION}/cni-plugins-linux-${TARGETARCH}-v${CNI_PLUGINS_VERSION}.tgz" && \
     mkdir -p /opt/cni/bin && \
-    tar -xf "cni-plugins-linux-amd64-v${CNI_PLUGINS_VERSION}.tgz" -C /opt/cni/bin && \
-    rm "cni-plugins-linux-amd64-v${CNI_PLUGINS_VERSION}.tgz"
+    tar -xf "cni-plugins-linux-${TARGETARCH}-v${CNI_PLUGINS_VERSION}.tgz" -C /opt/cni/bin && \
+    rm "cni-plugins-linux-${TARGETARCH}-v${CNI_PLUGINS_VERSION}.tgz"
 
 # install consul-cni, for transparent proxy
-RUN curl -LO https://releases.hashicorp.com/consul-cni/${CONSUL_CNI_PLUGINS_VERSION}/consul-cni_${CONSUL_CNI_PLUGINS_VERSION}_linux_amd64.zip && \
-    unzip "consul-cni_${CONSUL_CNI_PLUGINS_VERSION}_linux_amd64.zip" && \
-    mv consul-cni /opt/cni/bin/ && \
-    rm "consul-cni_${CONSUL_CNI_PLUGINS_VERSION}_linux_amd64.zip"
+RUN curl -fsSLO "https://releases.hashicorp.com/consul-cni/${CONSUL_CNI_PLUGINS_VERSION}/consul-cni_${CONSUL_CNI_PLUGINS_VERSION}_linux_${TARGETARCH}.zip" && \
+    unzip -o "consul-cni_${CONSUL_CNI_PLUGINS_VERSION}_linux_${TARGETARCH}.zip" consul-cni -d /opt/cni/bin && \
+    rm "consul-cni_${CONSUL_CNI_PLUGINS_VERSION}_linux_${TARGETARCH}.zip"
 
-# install hashiup
-RUN curl -sLS https://get.hashi-up.dev | sh
+# bake nomad and consul binaries into the image (no download at container start)
+RUN install-hashicorp-binary nomad "${NOMAD_VERSION}" && \
+    install-hashicorp-binary consul "${CONSUL_VERSION}"
 
 # Deleting leftovers
 RUN rm -rf \
@@ -114,9 +120,10 @@ COPY --from=hashibase / /
 
 USER root
 
-ENV NOMAD_VERSION="1.9.5"
-ENV CONSUL_VERSION="1.20.2"
-ENV VAULT_VERSION="1.18.3"
+# versions baked into the image; overriding them at runtime triggers a download
+ENV NOMAD_VERSION="2.1.1"
+ENV CONSUL_VERSION="2.1.0"
+ENV VAULT_VERSION="2.2.2"
 
 # tell systemd that it is in docker (it will check for the container env)
 # https://systemd.io/CONTAINER_INTERFACE/

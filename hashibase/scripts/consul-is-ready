@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# loop until the Consul service is running
-while true; do
-  status=$(systemctl is-active consul)
-  if [ "$status" == "active" ]; then
-    break
-  fi
-  echo "[WARN] waiting for Consul to start..."
-  sleep 1  # wait for 1 seconds before checking again
-done
+# one-shot readiness check of the local Consul agent (usable as a healthcheck)
+leader=$(curl -sfk "${CONSUL_HTTP_ADDR:-http://127.0.0.1:8500}/v1/status/leader") || exit 1
+[ -n "$leader" ] && [ "$leader" != '""' ]
