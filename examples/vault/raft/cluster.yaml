@@ -1,0 +1,14 @@
+name: 'vault-raft'
+datacenter: 'localhost'
+
+services:
+  vault:
+    enabled: true
+    # persistent storage, initialized and unsealed automatically
+    mode: 'raft'
+  nomad:
+    enabled: true
+    servers:
+      - name: 'server'
+    clients:
+      - name: 'worker'

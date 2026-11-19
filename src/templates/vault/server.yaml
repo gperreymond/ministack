@@ -1,6 +1,8 @@
 {%- set network_subnet = "10.1.0.0" -%}
 {%- if network.subnet -%}{%- set network_subnet = network.subnet -%}{%- endif -%}
 {%- set network_prefix = network_subnet | split(pat=".") | slice(start=0, end=3) | join(sep=".") -%}
+{%- set vault_mode = "dev" -%}
+{%- if services.vault.mode -%}{%- set vault_mode = services.vault.mode -%}{%- endif -%}
 {%- set hashibase_repository = "ghcr.io/gperreymond/hashibase" -%}
 {%- if  hashibase.repository -%}{%- set hashibase_repository = hashibase.repository -%}{%- endif -%}
 {%- set hashibase_tag = "base-1.3.0" -%}
@@ -11,26 +13,41 @@
 {%- if services.vault.config.root_token -%}{%- set root_token = services.vault.config.root_token -%}{%- endif -%}
 {%- set host_port = 8200 -%}
 {%- if services.vault.config.host_port is defined -%}{%- set host_port = services.vault.config.host_port -%}{%- endif -%}
+{%- set raft = vault_mode == "raft" -%}
+{%- set with_nomad = services.nomad.enabled and services.nomad.servers -%}
 
 {%- if services.vault.enabled %}
 services:
+  {%- if raft %}
+  # vault with persistent raft storage, initialized and unsealed by vault-bootstrap
+  {%- else %}
   # vault in dev mode: in memory, unsealed, known root token
+  {%- endif %}
   {{ datacenter }}-vault:
     image: 'hashicorp/vault:{{ vault_version }}'
     container_name: '{{ datacenter }}-vault'
     hostname: '{{ datacenter }}-vault'
+    {%- if raft %}
+    command: ['server']
+    {%- else %}
     command:
       - 'server'
       - '-dev'
       - '-dev-root-token-id={{ root_token }}'
       - '-dev-listen-address=0.0.0.0:8200'
+    {%- endif %}
     cap_add:
       - 'IPC_LOCK'
     environment:
       VAULT_ADDR: 'http://127.0.0.1:8200'
       VAULT_TOKEN: '{{ root_token }}'
     healthcheck:
+      {%- if raft %}
+      # the api answers, even sealed or not initialized (vault-bootstrap unseals it)
+      test: ["CMD-SHELL", "wget -q -O /dev/null 'http://127.0.0.1:8200/v1/sys/health?sealedcode=200&uninitcode=200&standbyok=true'"]
+      {%- else %}
       test: ["CMD", "vault", "status"]
+      {%- endif %}
       interval: 2s
       timeout: 3s
       retries: 15
@@ -46,13 +63,19 @@ services:
       - '{{ label }}'
       {%- endfor %}
       {%- endif %}
+    {%- if raft %}
+    volumes:
+      - '../configurations/vault/vault.hcl:/vault/config/vault.hcl:ro'
+      - 'vault_data:/vault/file'
+    {%- endif %}
     networks:
       ministack:
         ipv4_address: '{{ network_prefix }}.30'
-  {%- if services.nomad.enabled and services.nomad.servers %}
+  {%- if raft or with_nomad %}
 
-  # configure the vault jwt auth method for the nomad workload identities, then stay
-  # alive and healthy ('docker compose up --wait' fails on exited containers)
+  # init/unseal vault (raft mode) and configure the jwt auth method for the nomad
+  # workload identities, then stay alive and healthy ('docker compose up --wait'
+  # fails on exited containers)
   {{ datacenter }}-vault-bootstrap:
     image: '{{ hashibase_repository }}:{{ hashibase_tag }}'
     container_name: '{{ datacenter }}-vault-bootstrap'
@@ -62,17 +85,29 @@ services:
       test: ["CMD", "test", "-f", "/tmp/ready"]
       interval: 2s
       timeout: 2s
-      retries: 60
+      retries: 90
     volumes:
       - '../scripts/vault-bootstrap.sh:/ministack/vault-bootstrap.sh:ro'
+      {%- if raft %}
+      # unseal key and initial root token, keep it: without it the vault data is lost
+      - 'vault_keys:/ministack/keys'
+      {%- endif %}
     depends_on:
       {{ datacenter }}-vault:
         condition: 'service_healthy'
+      {%- if with_nomad %}
       {%- for item in services.nomad.servers %}
       {{ datacenter }}-{{ item.name }}:
         condition: 'service_healthy'
       {%- endfor %}
+      {%- endif %}
     networks:
       ministack: {}
+  {%- endif %}
+  {%- if raft %}
+
+volumes:
+  vault_data: {}
+  vault_keys: {}
   {%- endif %}
 {%- endif %}
