@@ -12,6 +12,8 @@ services:
     enabled: true
     version: '1.9.5'
     config:
+      # the api is served over https (see nomad/01-tls.hcl)
+      tls: true
       bind_addr: '{{ GetInterfaceIP \"eth0\" }}'
       log_level: 'info'
       server:

@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# usage: install-hashicorp-binary <product> <version>
+# download a hashicorp binary for the current architecture into /usr/local/bin
+
+set -euo pipefail
+
+product=$1
+version=$2
+arch=$(dpkg --print-architecture)
+archive="${product}_${version}_linux_${arch}.zip"
+tmp_dir=$(mktemp -d)
+
+echo "[INFO] installing ${product} ${version} (${arch})..."
+curl -fsSL "https://releases.hashicorp.com/${product}/${version}/${archive}" -o "${tmp_dir}/${archive}"
+unzip -o -q "${tmp_dir}/${archive}" "${product}" -d /usr/local/bin
+chmod +x "/usr/local/bin/${product}"
+rm -rf "${tmp_dir}"
