@@ -240,6 +240,24 @@ fn host_port(port: Option<&HostPort>, default: u16) -> Value {
     }
 }
 
+// a container of the cluster
+#[derive(Debug, PartialEq)]
+pub struct Node {
+    pub container: String,
+    pub role: &'static str,
+    pub ip: Option<String>,
+}
+
+impl Node {
+    fn new(container: String, role: &'static str, ip: Option<String>) -> Node {
+        Node {
+            container,
+            role,
+            ip,
+        }
+    }
+}
+
 // ip of a node: nomad servers .11+, consul servers .21+, vault .30, nomad clients .(100 + loop_index)
 const NOMAD_SERVER_BASE: u64 = 10;
 const CONSUL_SERVER_BASE: u64 = 20;
@@ -294,6 +312,54 @@ impl Config {
                 format!("{}.{}", prefix, NOMAD_CLIENT_BASE + index)
             })
             .collect()
+    }
+
+    // Every container of the cluster, in the start order, for the status command
+    pub fn nodes(&self) -> Vec<Node> {
+        let computed: HashMap<&str, Value> = self.computed().into_iter().collect();
+        let flag = |key: &str| computed.get(key).and_then(|v| v.as_bool()).unwrap_or(false);
+        let services = self.services.as_ref();
+        let consul = services.and_then(|s| s.consul.as_ref());
+        let vault = services.and_then(|s| s.vault.as_ref());
+        let nomad = services.and_then(|s| s.nomad.as_ref());
+        let container = |name: &str| format!("{}-{}", self.datacenter, name);
+        let mut nodes = Vec::new();
+
+        if consul.map(|c| c.enabled).unwrap_or(false) {
+            let servers = consul
+                .and_then(|c| c.servers.as_ref())
+                .into_iter()
+                .flatten();
+            for (server, ip) in servers.zip(self.consul_server_ips()) {
+                nodes.push(Node::new(
+                    container(&server.name),
+                    "consul server",
+                    Some(ip),
+                ));
+            }
+        }
+        if vault.map(|v| v.enabled).unwrap_or(false) {
+            let role = if flag("vault_raft") {
+                "vault (raft)"
+            } else {
+                "vault (dev)"
+            };
+            let ip = format!("{}.{}", self.network_prefix(), VAULT_NUMBER);
+            nodes.push(Node::new(container("vault"), role, Some(ip)));
+        }
+        // the nomad nodes are started when they are defined
+        let servers = nomad.and_then(|n| n.servers.as_ref()).into_iter().flatten();
+        for (server, ip) in servers.zip(self.nomad_server_ips()) {
+            nodes.push(Node::new(container(&server.name), "nomad server", Some(ip)));
+        }
+        let clients = nomad.and_then(|n| n.clients.as_ref()).into_iter().flatten();
+        for (client, ip) in clients.zip(self.nomad_client_ips()) {
+            nodes.push(Node::new(container(&client.name), "nomad client", Some(ip)));
+        }
+        if flag("needs_bootstrap") {
+            nodes.push(Node::new(container("bootstrap"), "bootstrap", None));
+        }
+        nodes
     }
 
     // Add an 'ip' to every node of the raw configuration, for the loops of the templates
@@ -988,6 +1054,29 @@ services:
         assert_eq!(nomad["servers"][0]["ip"], Value::from("10.1.0.11"));
         assert_eq!(nomad["clients"][0]["ip"], Value::from("10.1.0.101"));
         assert_eq!(nomad["clients"][1]["ip"], Value::from("10.1.0.110"));
+    }
+
+    #[test]
+    fn nodes_of_a_hashistack() {
+        let yaml = format!(
+            "{}  consul:\n    enabled: true\n    servers:\n      - name: 'consul'\n  vault:\n    enabled: true\n    mode: 'raft'\n",
+            MINIMUM
+        );
+        let nodes = validate(&yaml, Path::new("examples")).unwrap().nodes();
+        let summary: Vec<(&str, &str, Option<&str>)> = nodes
+            .iter()
+            .map(|n| (n.container.as_str(), n.role, n.ip.as_deref()))
+            .collect();
+        assert_eq!(
+            summary,
+            vec![
+                ("localhost-consul", "consul server", Some("10.1.0.21")),
+                ("localhost-vault", "vault (raft)", Some("10.1.0.30")),
+                ("localhost-server", "nomad server", Some("10.1.0.11")),
+                ("localhost-worker", "nomad client", Some("10.1.0.101")),
+                ("localhost-bootstrap", "bootstrap", None),
+            ]
+        );
     }
 
     #[test]

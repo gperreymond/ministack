@@ -9,6 +9,7 @@ use std::process::Command as ShellCommand;
 use tera::{Context, Tera};
 
 mod config;
+mod status;
 
 // Embed the "templates" directory into the binary
 static TEMPLATES_DIR: Dir = include_dir!("src/templates");
@@ -60,9 +61,15 @@ fn main() {
                 .action(clap::ArgAction::SetTrue)
                 .help("Print the environment variables to reach the cluster, usage: eval \"$(ministack -c <file> --env)\""),
         )
+        .arg(
+            Arg::new("status")
+                .long("status")
+                .action(clap::ArgAction::SetTrue)
+                .help("Show the nodes of the cluster, their state and the addresses (exit code 1 when a node is not ready)"),
+        )
         .group(
             ArgGroup::new("action")
-                .args(["start", "restart", "stop", "purge", "env"])
+                .args(["start", "restart", "stop", "purge", "env", "status"])
                 .multiple(false),
         )
         .get_matches();
@@ -86,7 +93,7 @@ fn main() {
         .join(".ministack");
 
     // Load and validate the YAML configuration file, then render all templates
-    let mut config_data = load_config(config_path);
+    let (config, mut config_data) = load_config(config_path);
     fs::create_dir_all(&output_dir)
         .unwrap_or_else(|_| panic!("Could not create directory: {}", output_dir.display()));
     let ministack_dir =
@@ -96,7 +103,13 @@ fn main() {
         "ministack_dir".to_string(),
         Value::String(ministack_dir.to_string_lossy().to_string()),
     );
-    render_all_templates(&config_data, &output_dir);
+    let generated_files = render_all_templates(&config_data, &output_dir);
+    // the read only commands keep their output clean
+    if !(matches.get_flag("env") || matches.get_flag("status")) {
+        for file in generated_files {
+            eprintln!("Rendered: '{}'", file);
+        }
+    }
 
     // Delete the certificates with the data of the cluster
     if matches.get_flag("purge") {
@@ -108,7 +121,8 @@ fn main() {
     let only_rendering = !(starting
         || matches.get_flag("stop")
         || matches.get_flag("purge")
-        || matches.get_flag("env"));
+        || matches.get_flag("env")
+        || matches.get_flag("status"));
     if starting || only_rendering {
         if !create_tls_certificates(&config_data, &ministack_dir) {
             std::process::exit(1);
@@ -119,6 +133,18 @@ fn main() {
     if matches.get_flag("env") {
         let env_file = output_dir.join("env.sh");
         print!("{}", fs::read_to_string(&env_file).unwrap_or_default());
+        return;
+    }
+
+    // State of the containers, and the addresses to reach the cluster
+    if matches.get_flag("status") {
+        if !is_docker_available() {
+            eprintln!("Error: 'docker' is not installed or not accessible in the PATH.");
+            std::process::exit(1);
+        }
+        if !status::print_status(&config, config_path, &output_dir) {
+            std::process::exit(1);
+        }
         return;
     }
 
@@ -167,7 +193,7 @@ fn is_docker_available() -> bool {
 }
 
 // Load, validate and parse the configuration file, exit with every problem found
-fn load_config(file_path: &str) -> HashMap<String, Value> {
+fn load_config(file_path: &str) -> (config::Config, HashMap<String, Value>) {
     let content = fs::read_to_string(file_path).unwrap_or_else(|e| {
         eprintln!(
             "Error: could not read the configuration file '{}': {}",
@@ -195,7 +221,7 @@ fn load_config(file_path: &str) -> HashMap<String, Value> {
     for (key, value) in config.computed() {
         data.insert(key.to_string(), value);
     }
-    data
+    (config, data)
 }
 
 // Run the generated scripts/tls.sh (empty when tls is disabled) in a hashibase container,
@@ -331,13 +357,6 @@ fn render_and_save_template(
 
     // Combine the base output directory with the relative path
     let output_path = base_output_dir.join(relative_path);
-
-    // Log the paths for debugging
-    eprintln!(
-        "Rendering template: '{}', saving to '{}'",
-        relative_path.display(),
-        output_path.display()
-    );
 
     // Render the template content
     let output = render_template(template_content, config_data);
