@@ -1,7 +1,7 @@
 # consul service mesh demo: the dashboard reaches the api through an envoy sidecar
 # usage: nomad job run examples/consul/minimum/jobs/countdash.hcl
 job "countdash" {
-  datacenters = ["localhost"]
+  # no datacenters: all of them (nomad >= 1.5), works on every example
 
   group "api" {
     network {

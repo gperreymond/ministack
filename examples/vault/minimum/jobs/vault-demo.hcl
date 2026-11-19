@@ -4,7 +4,7 @@
 #   nomad job run examples/vault/minimum/jobs/vault-demo.hcl
 #   nomad alloc logs -job vault-demo
 job "vault-demo" {
-  datacenters = ["localhost"]
+  # no datacenters: all of them (nomad >= 1.5), works on every example
 
   group "demo" {
     task "demo" {

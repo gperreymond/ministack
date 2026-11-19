@@ -87,6 +87,8 @@ From the simplest to the closest to production:
 The demo jobs work on every example that has the needed tools:
 
 ```sh
+# a web service in bridge mode, with the nomad service discovery
+$ nomad job run examples/nomad/minimum/jobs/whoami.hcl
 # consul service mesh: the dashboard reaches the api through envoy sidecars
 $ nomad job run examples/consul/minimum/jobs/countdash.hcl
 # vault secret read by a job with its workload identity
@@ -360,5 +362,17 @@ The closest to production: `examples/secure/cluster.yaml` (ACL + TLS everywhere,
 ## Contributing
 
 Contributions are welcome! Feel free to fork the repository and submit a pull request.
+
+Every pull request runs the CI (`.github/workflows/ci.yaml`):
+* every example is rendered, and the generated compose files and scripts are validated,
+* end to end tests start real clusters (`nomad/minimum`, `hashistack`, `secure`, `europe-paris`): api checks
+  (and ACL enforcement), demo jobs (`whoami`, `countdash` through the service mesh, `vault-demo`), stop/start, checks again.
+
+Run the same end to end test locally (the cluster is purged at the end):
+
+```sh
+$ cargo build
+$ scripts/e2e.sh examples/secure
+```
 
 ---
