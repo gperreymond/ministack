@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 'main'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    name: Build and render the examples
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: cargo build --locked
+
+      - name: Render every example and validate the generated files
+        run: |
+          for config in $(git ls-files 'examples/*cluster.yaml'); do
+            dir="$(dirname "$config")/.ministack"
+            echo "::group::${config}"
+            ./target/debug/ministack --config "$config"
+            docker compose --file "${dir}/cluster.yaml" config --quiet
+            for script in "${dir}"/scripts/*.sh; do
+              [ -s "$script" ] && bash -n "$script"
+            done
+            echo "::endgroup::"
+          done
+
+      - name: Keep the binary for the end to end tests
+        uses: actions/upload-artifact@v4
+        with:
+          name: ministack
+          path: target/debug/ministack
+          retention-days: 1
+
+  e2e:
+    name: End to end (${{ matrix.example }})
+    needs: render
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        example:
+          # base: 1 server, 1 client
+          - 'nomad/minimum'
+          # consul service mesh + vault dev, no security
+          - 'hashistack'
+          # acl + tls everywhere + vault raft
+          - 'secure'
+          # 3 servers, nomad tls, pinned nomad version (downloaded at start), traefik plugin
+          - 'europe-paris'
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Get the binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ministack
+          path: bin
+
+      - name: Run the end to end test
+        run: |
+          chmod +x bin/ministack
+          scripts/e2e.sh "examples/${{ matrix.example }}" bin/ministack
