@@ -19,7 +19,7 @@
 {%- if services.vault.enabled %}
 services:
   {%- if raft %}
-  # vault with persistent raft storage, initialized and unsealed by vault-bootstrap
+  # vault with persistent raft storage, initialized and unsealed by the bootstrap service
   {%- else %}
   # vault in dev mode: in memory, unsealed, known root token
   {%- endif %}
@@ -43,7 +43,7 @@ services:
       VAULT_TOKEN: '{{ root_token }}'
     healthcheck:
       {%- if raft %}
-      # the api answers, even sealed or not initialized (vault-bootstrap unseals it)
+      # the api answers, even sealed or not initialized (the bootstrap service unseals it)
       test: ["CMD-SHELL", "wget -q -O /dev/null 'http://127.0.0.1:8200/v1/sys/health?sealedcode=200&uninitcode=200&standbyok=true'"]
       {%- else %}
       test: ["CMD", "vault", "status"]
@@ -71,43 +71,9 @@ services:
     networks:
       ministack:
         ipv4_address: '{{ network_prefix }}.30'
-  {%- if raft or with_nomad %}
-
-  # init/unseal vault (raft mode) and configure the jwt auth method for the nomad
-  # workload identities, then stay alive and healthy ('docker compose up --wait'
-  # fails on exited containers)
-  {{ datacenter }}-vault-bootstrap:
-    image: '{{ hashibase_repository }}:{{ hashibase_tag }}'
-    container_name: '{{ datacenter }}-vault-bootstrap'
-    init: true
-    entrypoint: ['bash', '-c', 'bash /ministack/vault-bootstrap.sh && touch /tmp/ready && exec sleep infinity']
-    healthcheck:
-      test: ["CMD", "test", "-f", "/tmp/ready"]
-      interval: 2s
-      timeout: 2s
-      retries: 90
-    volumes:
-      - '../scripts/vault-bootstrap.sh:/ministack/vault-bootstrap.sh:ro'
-      {%- if raft %}
-      # unseal key and initial root token, keep it: without it the vault data is lost
-      - 'vault_keys:/ministack/keys'
-      {%- endif %}
-    depends_on:
-      {{ datacenter }}-vault:
-        condition: 'service_healthy'
-      {%- if with_nomad %}
-      {%- for item in services.nomad.servers %}
-      {{ datacenter }}-{{ item.name }}:
-        condition: 'service_healthy'
-      {%- endfor %}
-      {%- endif %}
-    networks:
-      ministack: {}
-  {%- endif %}
   {%- if raft %}
 
 volumes:
   vault_data: {}
-  vault_keys: {}
   {%- endif %}
 {%- endif %}
