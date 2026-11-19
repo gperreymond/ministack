@@ -13,9 +13,6 @@ mod config;
 // Embed the "templates" directory into the binary
 static TEMPLATES_DIR: Dir = include_dir!("src/templates");
 
-// keep in sync with the default image of the templates
-const DEFAULT_HASHIBASE_REPOSITORY: &str = "ghcr.io/gperreymond/hashibase";
-const DEFAULT_HASHIBASE_TAG: &str = "base-1.3.0";
 // tls certificates, inside the output directory, kept between two renderings
 const TLS_DIR: &str = "tls";
 
@@ -166,18 +163,23 @@ fn load_config(file_path: &str) -> HashMap<String, Value> {
         std::process::exit(1);
     });
     let config_dir = Path::new(file_path).parent().unwrap_or(Path::new("."));
-    if let Err(errors) = config::validate(&content, config_dir) {
+    let config = config::validate(&content, config_dir).unwrap_or_else(|errors| {
         eprintln!("Error: the configuration file '{}' is invalid:", file_path);
         for error in errors {
             eprintln!("  - {}", error);
         }
         std::process::exit(1);
-    }
-    // the templates use the raw values
-    serde_yaml::from_str(&content).unwrap_or_else(|e| {
+    });
+    // the templates use the raw values, and the values computed from them (tls, acl, tokens, network...)
+    let mut data: HashMap<String, Value> = serde_yaml::from_str(&content).unwrap_or_else(|e| {
         eprintln!("Error: the configuration file '{}' is invalid: {}", file_path, e);
         std::process::exit(1);
-    })
+    });
+    config.add_node_ips(&mut data);
+    for (key, value) in config.computed() {
+        data.insert(key.to_string(), value);
+    }
+    data
 }
 
 // Run the generated scripts/tls.sh (empty when tls is disabled) in a hashibase container,
@@ -197,15 +199,9 @@ fn create_tls_certificates(config_data: &HashMap<String, Value>, ministack_dir: 
     fs::create_dir_all(&tls_dir).unwrap_or_else(|_| panic!("Could not create directory: {}", tls_dir.display()));
 
     // same image as the nodes
-    let hashibase = config_data.get("hashibase");
-    let repository = hashibase
-        .and_then(|h| h.get("repository"))
-        .and_then(|v| v.as_str())
-        .unwrap_or(DEFAULT_HASHIBASE_REPOSITORY);
-    let tag = hashibase
-        .and_then(|h| h.get("tag"))
-        .and_then(|v| v.as_str())
-        .unwrap_or(DEFAULT_HASHIBASE_TAG);
+    let computed = |key: &str| config_data.get(key).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+    let repository = computed("hashibase_repository");
+    let tag = computed("hashibase_tag");
 
     // run as the owner of the output directory, so the files stay removable by the user
     let metadata = fs::metadata(ministack_dir).expect("Failed to read the output directory metadata");

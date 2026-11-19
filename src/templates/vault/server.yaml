@@ -1,35 +1,6 @@
-{%- set nomad_tls = false -%}
-{%- if services.nomad.enabled -%}{%- if services.nomad.config.tls -%}{%- set nomad_tls = true -%}{%- endif -%}{%- endif -%}
-{%- set consul_tls = false -%}
-{%- if services.consul.enabled -%}{%- if services.consul.config.tls -%}{%- set consul_tls = true -%}{%- endif -%}{%- endif -%}
-{%- set vault_tls = false -%}
-{%- if services.vault.enabled -%}{%- if services.vault.config.tls -%}{%- set vault_tls = true -%}{%- endif -%}{%- endif -%}
-{%- set any_tls = nomad_tls or consul_tls or vault_tls -%}
-{%- set nomad_scheme = "http" -%}{%- if nomad_tls -%}{%- set nomad_scheme = "https" -%}{%- endif -%}
-{%- set consul_scheme = "http" -%}{%- set consul_port = 8500 -%}
-{%- if consul_tls -%}{%- set consul_scheme = "https" -%}{%- set consul_port = 8501 -%}{%- endif -%}
-{%- set vault_scheme = "http" -%}{%- if vault_tls -%}{%- set vault_scheme = "https" -%}{%- endif -%}
-{%- set network_subnet = "10.1.0.0" -%}
-{%- if network.subnet -%}{%- set network_subnet = network.subnet -%}{%- endif -%}
-{%- set network_prefix = network_subnet | split(pat=".") | slice(start=0, end=3) | join(sep=".") -%}
-{%- set vault_mode = "dev" -%}
-{%- if services.vault.mode -%}{%- set vault_mode = services.vault.mode -%}{%- endif -%}
-{%- set hashibase_repository = "ghcr.io/gperreymond/hashibase" -%}
-{%- if  hashibase.repository -%}{%- set hashibase_repository = hashibase.repository -%}{%- endif -%}
-{%- set hashibase_tag = "base-1.3.0" -%}
-{%- if  hashibase.tag -%}{%- set hashibase_tag = hashibase.tag -%}{%- endif -%}
-{%- set vault_version = "2.2.2" -%}
-{%- if services.vault.version -%}{%- set vault_version = services.vault.version -%}{%- endif -%}
-{%- set root_token = "root" -%}
-{%- if services.vault.config.root_token -%}{%- set root_token = services.vault.config.root_token -%}{%- endif -%}
-{%- set host_port = 8200 -%}
-{%- if services.vault.config.host_port is defined -%}{%- set host_port = services.vault.config.host_port -%}{%- endif -%}
-{%- set raft = vault_mode == "raft" -%}
-{%- set with_nomad = services.nomad.enabled and services.nomad.servers -%}
-
 {%- if services.vault.enabled %}
 services:
-  {%- if raft %}
+  {%- if vault_raft %}
   # vault with persistent raft storage, initialized and unsealed by the bootstrap service
   {%- else %}
   # vault in dev mode: in memory, unsealed, known root token
@@ -38,13 +9,13 @@ services:
     image: 'hashicorp/vault:{{ vault_version }}'
     container_name: '{{ datacenter }}-vault'
     hostname: '{{ datacenter }}-vault'
-    {%- if raft %}
+    {%- if vault_raft %}
     command: ['server']
     {%- else %}
     command:
       - 'server'
       - '-dev'
-      - '-dev-root-token-id={{ root_token }}'
+      - '-dev-root-token-id={{ vault_root_token }}'
       {%- if vault_tls %}
       # the tls listener on :8200 is in vault.hcl
       - '-dev-listen-address=127.0.0.1:8210'
@@ -59,9 +30,9 @@ services:
       {%- if vault_tls %}
       VAULT_CACERT: '/ministack/tls/ca.pem'
       {%- endif %}
-      VAULT_TOKEN: '{{ root_token }}'
+      VAULT_TOKEN: '{{ vault_root_token }}'
     healthcheck:
-      {%- if raft %}
+      {%- if vault_raft %}
       # the api answers, even sealed or not initialized ('vault status' exit code 2), the bootstrap service unseals it
       test: ["CMD-SHELL", "vault status > /dev/null 2>&1; [ $$? -ne 1 ]"]
       {%- else %}
@@ -71,9 +42,9 @@ services:
       timeout: 3s
       retries: 15
       start_period: 30s
-    {%- if host_port %}
+    {%- if vault_host_port %}
     ports:
-      - '127.0.0.1:{{ host_port }}:8200'
+      - '127.0.0.1:{{ vault_host_port }}:8200'
     {%- endif %}
     labels:
       - 'ministack/vault=server'
@@ -82,10 +53,10 @@ services:
       - '{{ label }}'
       {%- endfor %}
       {%- endif %}
-    {%- if raft or vault_tls %}
+    {%- if vault_raft or vault_tls %}
     volumes:
       - '../configurations/vault/vault.hcl:/vault/config/vault.hcl:ro'
-      {%- if raft %}
+      {%- if vault_raft %}
       - 'vault_data:/vault/file'
       {%- endif %}
       {%- if vault_tls %}
@@ -94,8 +65,8 @@ services:
     {%- endif %}
     networks:
       ministack:
-        ipv4_address: '{{ network_prefix }}.30'
-  {%- if raft %}
+        ipv4_address: '{{ vault_ip }}'
+  {%- if vault_raft %}
 
 volumes:
   vault_data: {}

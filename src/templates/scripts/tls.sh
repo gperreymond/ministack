@@ -1,10 +1,3 @@
-{%- set network_subnet = "10.1.0.0" -%}
-{%- if network.subnet -%}{%- set network_subnet = network.subnet -%}{%- endif -%}
-{%- set network_prefix = network_subnet | split(pat=".") | slice(start=0, end=3) | join(sep=".") -%}
-{%- set any_tls = false -%}
-{%- if services.nomad.enabled and services.nomad.config.tls -%}{%- set any_tls = true -%}{%- endif -%}
-{%- if services.consul.enabled and services.consul.config.tls -%}{%- set any_tls = true -%}{%- endif -%}
-{%- if services.vault.enabled and services.vault.config.tls -%}{%- set any_tls = true -%}{%- endif -%}
 {%- if any_tls -%}
 #!/bin/bash
 
@@ -33,16 +26,14 @@ cd "$WORK"
 nomad tls cert create -server -region global $CA \
   {%- if services.nomad.servers %}
   {%- for item in services.nomad.servers %}
-  -additional-dnsname '{{ datacenter }}-{{ item.name }}' -additional-ipaddress '{{ network_prefix }}.{{ 10 + loop.index }}' \
+  -additional-dnsname '{{ datacenter }}-{{ item.name }}' -additional-ipaddress '{{ item.ip }}' \
   {%- endfor %}
   {%- endif %}
   > /dev/null 2>&1
 nomad tls cert create -client -region global $CA \
   {%- if services.nomad.clients %}
   {%- for item in services.nomad.clients %}
-  {%- set loop_index = loop.index %}
-  {%- if item.loop_index %}{%- set loop_index = item.loop_index %}{%- endif %}
-  -additional-dnsname '{{ datacenter }}-{{ item.name }}' -additional-ipaddress '{{ network_prefix }}.{{ 100 + loop_index }}' \
+  -additional-dnsname '{{ datacenter }}-{{ item.name }}' -additional-ipaddress '{{ item.ip }}' \
   {%- endfor %}
   {%- endif %}
   > /dev/null 2>&1
@@ -55,7 +46,7 @@ mv global-client-nomad-key.pem /tls/nomad-client-key.pem
 consul tls cert create -server -dc '{{ datacenter }}' $CA \
   {%- if services.consul.servers %}
   {%- for item in services.consul.servers %}
-  -additional-dnsname '{{ datacenter }}-{{ item.name }}' -additional-ipaddress '{{ network_prefix }}.{{ 20 + loop.index }}' \
+  -additional-dnsname '{{ datacenter }}-{{ item.name }}' -additional-ipaddress '{{ item.ip }}' \
   {%- endfor %}
   {%- endif %}
   > /dev/null
@@ -67,7 +58,7 @@ mv '{{ datacenter }}-client-consul-0-key.pem' /tls/consul-client-key.pem
 
 # vault
 consul tls cert create -server -dc '{{ datacenter }}' $CA \
-  -additional-dnsname '{{ datacenter }}-vault' -additional-ipaddress '{{ network_prefix }}.30' > /dev/null
+  -additional-dnsname '{{ datacenter }}-vault' -additional-ipaddress '{{ vault_ip }}' > /dev/null
 mv '{{ datacenter }}-server-consul-0.pem' /tls/vault.pem
 mv '{{ datacenter }}-server-consul-0-key.pem' /tls/vault-key.pem
 
