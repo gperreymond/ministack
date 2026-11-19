@@ -22,6 +22,13 @@ To install Ministack, follow this step:
 $ curl -fsSL https://raw.githubusercontent.com/gperreymond/ministack/main/install | bash
 ```
 
+Supported: Linux x86_64, macOS Intel and Apple Silicon (native binary).  
+The binary goes into `/usr/local/bin` (sudo is asked only if needed), use `INSTALL_DIR` to change it:
+
+```sh
+$ curl -fsSL https://raw.githubusercontent.com/gperreymond/ministack/main/install | INSTALL_DIR=~/.local/bin bash
+```
+
 ---
 
 ## Usages

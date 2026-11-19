@@ -1,43 +1,85 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
+
+REPOSITORY="gperreymond/ministack"
+# where to install the binary, sudo is only used when the directory is not writable
+INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
 # Function to fetch the latest release version from GitHub
 get_latest_release() {
-    curl --silent "https://api.github.com/repos/gperreymond/ministack/releases/latest" |
+    curl -fsSL "https://api.github.com/repos/${REPOSITORY}/releases/latest" |
     sed -n 's/.*"tag_name": "\([^"]*\)".*/\1/p'
 }
 
-# Detect the operating system
+# Download a release asset, return a non-zero code if it does not exist
+download() {
+    local asset=$1
+    local destination=$2
+    curl -fsSL "https://github.com/${REPOSITORY}/releases/download/${LATEST_VERSION}/${asset}" -o "$destination"
+}
+
+# Detect the operating system and the architecture
 OS=$(uname -s)
+ARCH=$(uname -m)
 
-# Fetch the latest version of ministack
-LATEST_VERSION=$(get_latest_release)
-
-echo "[INFO] latest ministack version: $LATEST_VERSION"
-
-# Download the binary based on the operating system
+# Choose the binary
 if [[ "$OS" == "Linux" ]]; then
-    echo "[INFO] downloading ministack for Linux..."
-    sudo curl -sL "https://github.com/gperreymond/ministack/releases/download/$LATEST_VERSION/ministack-linux" -o /usr/local/bin/ministack
+    case "$ARCH" in
+        x86_64|amd64) ASSET="ministack-linux" ;;
+        *) echo "[ERROR] unsupported architecture for Linux: $ARCH (only x86_64)"; exit 1 ;;
+    esac
 elif [[ "$OS" == "Darwin" ]]; then
-    echo "[INFO] downloading ministack for macOS..."
-    sudo curl -sL "https://github.com/gperreymond/ministack/releases/download/$LATEST_VERSION/ministack-macos" -o /usr/local/bin/ministack
+    case "$ARCH" in
+        arm64|aarch64) ASSET="ministack-macos-arm64" ;;
+        x86_64) ASSET="ministack-macos" ;;
+        *) echo "[ERROR] unsupported architecture for macOS: $ARCH"; exit 1 ;;
+    esac
 else
     echo "[ERROR] unsupported operating system: $OS"
     exit 1
 fi
 
-# Set execution permissions on the binary
-echo "[INFO] setting execute permissions on the binary..."
-sudo chmod +x /usr/local/bin/ministack
+# Fetch the latest version of ministack
+LATEST_VERSION=$(get_latest_release)
+if [[ -z "$LATEST_VERSION" ]]; then
+    echo "[ERROR] could not find the latest ministack release"
+    exit 1
+fi
+echo "[INFO] latest ministack version: $LATEST_VERSION"
+
+# Download into a temporary file first
+TMP_FILE=$(mktemp)
+trap 'rm -f "$TMP_FILE"' EXIT
+
+echo "[INFO] downloading ${ASSET} (${OS} ${ARCH})..."
+if ! download "$ASSET" "$TMP_FILE"; then
+    if [[ "$ASSET" == "ministack-macos-arm64" ]]; then
+        # releases older than the native apple silicon binary: use the intel one (rosetta)
+        echo "[WARN] no native apple silicon binary in ${LATEST_VERSION}, using the intel one (rosetta)"
+        ASSET="ministack-macos"
+        download "$ASSET" "$TMP_FILE"
+    else
+        echo "[ERROR] could not download ${ASSET} from ${LATEST_VERSION}"
+        exit 1
+    fi
+fi
+chmod +x "$TMP_FILE"
+
+# Install the binary
+SUDO=""
+if ! mkdir -p "$INSTALL_DIR" 2> /dev/null || [[ ! -w "$INSTALL_DIR" ]]; then
+    SUDO="sudo"
+fi
+echo "[INFO] installing into ${INSTALL_DIR}/ministack..."
+$SUDO mkdir -p "$INSTALL_DIR"
+$SUDO install -m 0755 "$TMP_FILE" "${INSTALL_DIR}/ministack"
 
 # Verify the installation
 echo "[INFO] verifying installation..."
-if command -v ministack > /dev/null; then
-    ministack --version
+if "${INSTALL_DIR}/ministack" --version; then
     echo "[INFO] installation completed successfully."
 else
-    echo "[ERROR] ministack command not found. Installation failed."
+    echo "[ERROR] ministack can not be executed. Installation failed."
     exit 1
 fi
