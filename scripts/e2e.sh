@@ -133,6 +133,7 @@ check_jobs() {
 start() {
   log "starting ${EXAMPLE}..."
   "$BIN" --config "$CONFIG" --start
+  "$BIN" --config "$CONFIG" --status || fail "ministack --status: a node is not ready"
   # reset, then load the variables of this cluster
   unset NOMAD_ADDR NOMAD_TOKEN NOMAD_CACERT CONSUL_HTTP_ADDR CONSUL_HTTP_TOKEN CONSUL_CACERT VAULT_ADDR VAULT_TOKEN VAULT_CACERT
   eval "$("$BIN" --config "$CONFIG" --env)"
@@ -159,6 +160,7 @@ check_jobs vault
 # ------------------------------------------------------------------ stop / start
 log "stopping ${EXAMPLE} (data kept)..."
 "$BIN" --config "$CONFIG" --stop > /dev/null
+! "$BIN" --config "$CONFIG" --status > /dev/null || fail "ministack --status: ready after --stop"
 start
 check_apis
 # a dev vault is in memory: its secret is gone after a restart

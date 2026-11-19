@@ -40,6 +40,8 @@ $ ministack --config [path_to_your_config_yaml_file] --start
 # export the addresses, tokens and ca files of the cluster in your shell (NOMAD_*, CONSUL_*, VAULT_*)
 $ eval "$(ministack --config [path_to_your_config_yaml_file] --env)"
 $ nomad node status
+# nodes of the cluster, their state and ip, and the addresses (exit code 1 when a node is not ready)
+$ ministack --config [path_to_your_config_yaml_file] --status
 # recreate all containers
 $ ministack --config [path_to_your_config_yaml_file] --restart
 # stop the cluster, data is kept
