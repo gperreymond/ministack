@@ -2,6 +2,7 @@
 services:
   # traefik in front of the services of the jobs: http://<service>.{{ ingress_domain }}:{{ ingress_port }}
   # every service is exposed by default, a service opts out with the tag 'traefik.enable=false'
+  # tcp: one port per entrypoint of ingress.tcp, the service tags its router with this entrypoint
   {{ datacenter }}-ingress:
     image: 'traefik:{{ ingress_version }}'
     container_name: '{{ datacenter }}-ingress'
@@ -10,6 +11,12 @@ services:
       - '--log.level=INFO'
       - '--ping=true'
       - '--entryPoints.web.address=:80'
+      # the routers without entrypoints (the default http routers) only listen on web
+      - '--entryPoints.web.asDefault=true'
+      {%- for entry in ingress_tcp %}
+      # tcp: 127.0.0.1:{{ entry.port }} -> the service whose router uses the entrypoint '{{ entry.name }}'
+      - '--entryPoints.{{ entry.name }}.address=:{{ entry.internal }}'
+      {%- endfor %}
       # services registered in nomad (service provider "nomad")
       - '--providers.nomad=true'
       - '--providers.nomad.exposedByDefault=true'
@@ -45,6 +52,9 @@ services:
       retries: 15
     ports:
       - '127.0.0.1:{{ ingress_port }}:80'
+      {%- for entry in ingress_tcp %}
+      - '127.0.0.1:{{ entry.port }}:{{ entry.internal }}'
+      {%- endfor %}
     labels:
       - 'ministack/ingress=traefik'
     {%- if nomad_tls or consul_tls %}

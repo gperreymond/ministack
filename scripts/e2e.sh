@@ -20,6 +20,8 @@ PROJECT=$(sed -n "s/^name: *['\"]\{0,1\}\([^'\"]*\)['\"]\{0,1\} *$/\1/p" "$CONFI
 RAFT=$(grep -q "mode: *'raft'" "$CONFIG" && echo true || echo false)
 # the ingress of the examples listens on the default port
 INGRESS=$(grep -A1 "^ingress:" "$CONFIG" | grep -q "enabled: *true" && echo true || echo false)
+# the tcp ingress of the examples: redis on 6379
+INGRESS_TCP=$(grep -q "^    redis: *6379" "$CONFIG" && echo true || echo false)
 
 log() { echo "[E2E] $*"; }
 fail() { echo "[E2E][FAIL] $*"; exit 1; }
@@ -123,6 +125,11 @@ ingress_answers() {
   curl -sf -m 5 -H "Host: $1.localhost" http://127.0.0.1:8080/ | grep -q "$2"
 }
 
+# redis through the tcp ingress: 127.0.0.1:6379 answers PING
+redis_answers() {
+  timeout 5 bash -c 'exec 3<>/dev/tcp/127.0.0.1/6379 && printf "PING\r\n" >&3 && head -c 5 <&3' | grep -q PONG
+}
+
 vault_demo_reads() {
   docker exec "$SERVER" nomad alloc logs -job vault-demo | grep -q "password from vault: $1"
 }
@@ -140,6 +147,9 @@ check_jobs() {
       # registered in consul
       retry 60 ingress_answers count-dashboard 'html' || fail "count-dashboard does not answer through the ingress"
     fi
+  fi
+  if [ "$INGRESS_TCP" == "true" ]; then
+    retry 120 redis_answers || fail "redis does not answer through the tcp ingress"
   fi
   if [ -n "${VAULT_ADDR:-}" ] && [ "$1" == "vault" ]; then
     retry 120 vault_demo_reads e2e || fail "vault-demo does not read its secret"
@@ -176,6 +186,9 @@ sed -e 's#traefik/whoami:v1.10.3#ministack-local/whoami:e2e#' -e 's/"whoami"/"wh
 run_job "$LOCAL_JOB"
 if [ -n "${CONSUL_HTTP_ADDR:-}" ]; then
   run_job "${JOBS_DIR}/consul/minimum/jobs/countdash.hcl"
+fi
+if [ "$INGRESS_TCP" == "true" ]; then
+  run_job "${JOBS_DIR}/nomad/minimum/jobs/redis.hcl"
 fi
 if [ -n "${VAULT_ADDR:-}" ]; then
   docker exec "$VAULT" vault kv put secret/default/vault-demo password=e2e > /dev/null

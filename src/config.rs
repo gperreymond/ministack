@@ -9,7 +9,7 @@
 
 use serde::Deserialize;
 use serde_yaml::Value;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::net::Ipv4Addr;
 use std::path::Path;
 
@@ -25,6 +25,8 @@ const DEFAULT_VAULT_MODE: &str = "dev";
 const DEFAULT_INGRESS_PORT: u16 = 8080;
 const DEFAULT_INGRESS_DOMAIN: &str = "localhost";
 const DEFAULT_INGRESS_VERSION: &str = "v3.7.19";
+// ports of the tcp entrypoints inside the traefik container, away from :80 (web) and :8080 (ping)
+const INGRESS_TCP_BASE_PORT: u16 = 10000;
 
 // nomad servers are .11+, consul servers .21+, vault .30, nomad clients .101+
 const MAX_NOMAD_SERVERS: usize = 9;
@@ -58,6 +60,9 @@ pub struct Ingress {
     pub port: Option<u16>,
     pub domain: Option<String>,
     pub version: Option<String>,
+    // tcp entrypoints: name -> port published on 127.0.0.1, e.g. redis: 6379
+    #[serde(default)]
+    pub tcp: BTreeMap<String, u16>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -397,6 +402,27 @@ impl Config {
         Some(format!("http://{}.{}:{}", service, domain, port))
     }
 
+    // the tcp entrypoints of the ingress: (name, port on the host, port in the container)
+    pub fn ingress_tcp(&self) -> Vec<(String, u16, u16)> {
+        self.ingress
+            .as_ref()
+            .filter(|i| i.enabled)
+            .map(|i| {
+                i.tcp
+                    .iter()
+                    .enumerate()
+                    .map(|(index, (name, port))| {
+                        (
+                            name.clone(),
+                            *port,
+                            INGRESS_TCP_BASE_PORT + 1 + index as u16,
+                        )
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     // Images of the host to copy into the clients after each start
     pub fn copy_images(&self) -> Vec<String> {
         self.services
@@ -549,6 +575,21 @@ impl Config {
                 Value::from(
                     non_empty(self.ingress.as_ref().and_then(|i| i.version.as_ref()))
                         .unwrap_or(DEFAULT_INGRESS_VERSION),
+                ),
+            ),
+            (
+                "ingress_tcp",
+                Value::from(
+                    self.ingress_tcp()
+                        .into_iter()
+                        .map(|(name, port, internal)| {
+                            let mut entry = serde_yaml::Mapping::new();
+                            entry.insert("name".into(), name.into());
+                            entry.insert("port".into(), port.into());
+                            entry.insert("internal".into(), internal.into());
+                            Value::Mapping(entry)
+                        })
+                        .collect::<Vec<_>>(),
                 ),
             ),
             (
@@ -904,13 +945,40 @@ fn check(config: &Config, config_dir: &Path) -> Vec<String> {
                 ));
             }
         }
+        for (name, port) in &ingress.tcp {
+            if !is_valid_name(name, true) {
+                errors.push(format!(
+                    "ingress.tcp.{}: must use letters, digits, '-' or '_' (it is the name of the traefik entrypoint)",
+                    name
+                ));
+            } else if name == "web" || name == "traefik" {
+                errors.push(format!(
+                    "ingress.tcp.{}: '{}' is an entrypoint of ministack, use another name",
+                    name, name
+                ));
+            }
+            if *port == 0 {
+                errors.push(format!("ingress.tcp.{}: must be a port number", name));
+            }
+        }
+    } else if config.ingress.as_ref().is_some_and(|i| !i.tcp.is_empty()) {
+        errors.push("ingress.tcp: the ingress is not enabled, add 'enabled: true'".to_string());
     }
 
     // ---- ports published on the host
     let mut host_ports: HashMap<u16, &str> = HashMap::new();
     let mut published = Vec::new();
+    let tcp_ports: Vec<(String, HostPort)> = config
+        .ingress_tcp()
+        .into_iter()
+        .filter(|(_, port, _)| *port != 0)
+        .map(|(name, port, _)| (format!("ingress.tcp.{}", name), HostPort::Port(port)))
+        .collect();
     if config.ingress_enabled() {
         published.push(("ingress.port", ingress_port.as_ref(), None));
+        for (path, port) in &tcp_ports {
+            published.push((path.as_str(), Some(port), None));
+        }
     }
     if nomad_enabled && !nomad_servers.is_empty() {
         let port = nomad
@@ -1253,6 +1321,22 @@ services:
             MINIMUM
         );
         assert!(errors(&bad).iter().any(|e| e.contains("not a domain name")));
+        let tcp = format!("{}  tcp:\n    redis: 6379\n    postgres: 5432\n", yaml);
+        let config = validate(&tcp, Path::new("examples")).unwrap();
+        assert_eq!(
+            config.ingress_tcp(),
+            vec![
+                ("postgres".to_string(), 5432, 10001),
+                ("redis".to_string(), 6379, 10002)
+            ]
+        );
+        let tcp_conflict = format!("{}  tcp:\n    redis: 8080\n    web: 6379\n", yaml);
+        let found = errors(&tcp_conflict);
+        assert!(found.iter().any(|e| e.contains("already published")));
+        assert!(found.iter().any(|e| e.contains("entrypoint of ministack")));
+        let disabled = format!("{}ingress:\n  tcp:\n    redis: 6379\n", MINIMUM);
+        assert!(errors(&disabled).iter().any(|e| e.contains("not enabled")));
+
         let without_servers = yaml.replace("    servers:\n      - name: 'server'\n", "");
         assert!(errors(&without_servers)
             .iter()
