@@ -22,6 +22,9 @@ const DEFAULT_CONSUL_TOKEN: &str = "22222222-2222-2222-2222-222222222222";
 const DEFAULT_VAULT_ROOT_TOKEN: &str = "root";
 const DEFAULT_VAULT_VERSION: &str = "2.2.2";
 const DEFAULT_VAULT_MODE: &str = "dev";
+const DEFAULT_INGRESS_PORT: u16 = 8080;
+const DEFAULT_INGRESS_DOMAIN: &str = "localhost";
+const DEFAULT_INGRESS_VERSION: &str = "v3.7.19";
 
 // nomad servers are .11+, consul servers .21+, vault .30, nomad clients .101+
 const MAX_NOMAD_SERVERS: usize = 9;
@@ -41,7 +44,20 @@ pub struct Config {
     #[serde(default)]
     pub plugins: Option<Vec<String>>,
     #[serde(default)]
+    pub ingress: Option<Ingress>,
+    #[serde(default)]
     pub services: Option<Services>,
+}
+
+// a traefik in front of the services of the jobs: http://<service>.<domain>:<port>
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Ingress {
+    #[serde(default)]
+    pub enabled: bool,
+    pub port: Option<u16>,
+    pub domain: Option<String>,
+    pub version: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -264,6 +280,7 @@ impl Node {
 const NOMAD_SERVER_BASE: u64 = 10;
 const CONSUL_SERVER_BASE: u64 = 20;
 const VAULT_NUMBER: u64 = 30;
+const INGRESS_NUMBER: u64 = 40;
 const NOMAD_CLIENT_BASE: u64 = 100;
 
 impl Config {
@@ -361,7 +378,23 @@ impl Config {
         if flag("needs_bootstrap") {
             nodes.push(Node::new(container("bootstrap"), "bootstrap", None));
         }
+        if self.ingress_enabled() {
+            let ip = format!("{}.{}", self.network_prefix(), INGRESS_NUMBER);
+            nodes.push(Node::new(container("ingress"), "ingress", Some(ip)));
+        }
         nodes
+    }
+
+    pub fn ingress_enabled(&self) -> bool {
+        self.ingress.as_ref().map(|i| i.enabled).unwrap_or(false)
+    }
+
+    // http://<service>.<domain>:<port>, the address of a service behind the ingress
+    pub fn ingress_url(&self, service: &str) -> Option<String> {
+        let ingress = self.ingress.as_ref().filter(|i| i.enabled)?;
+        let domain = non_empty(ingress.domain.as_ref()).unwrap_or(DEFAULT_INGRESS_DOMAIN);
+        let port = ingress.port.unwrap_or(DEFAULT_INGRESS_PORT);
+        Some(format!("http://{}.{}:{}", service, domain, port))
     }
 
     // Images of the host to copy into the clients after each start
@@ -494,6 +527,34 @@ impl Config {
                 ),
             ),
             ("with_nomad", Value::from(with_nomad)),
+            ("ingress_enabled", Value::from(self.ingress_enabled())),
+            (
+                "ingress_port",
+                Value::from(
+                    self.ingress
+                        .as_ref()
+                        .and_then(|i| i.port)
+                        .unwrap_or(DEFAULT_INGRESS_PORT),
+                ),
+            ),
+            (
+                "ingress_domain",
+                Value::from(
+                    non_empty(self.ingress.as_ref().and_then(|i| i.domain.as_ref()))
+                        .unwrap_or(DEFAULT_INGRESS_DOMAIN),
+                ),
+            ),
+            (
+                "ingress_version",
+                Value::from(
+                    non_empty(self.ingress.as_ref().and_then(|i| i.version.as_ref()))
+                        .unwrap_or(DEFAULT_INGRESS_VERSION),
+                ),
+            ),
+            (
+                "ingress_ip",
+                Value::from(format!("{}.{}", self.network_prefix(), INGRESS_NUMBER)),
+            ),
             ("needs_bootstrap", Value::from(needs_bootstrap)),
             ("network_subnet", Value::from(network_subnet)),
             (
@@ -652,6 +713,9 @@ fn check(config: &Config, config_dir: &Path) -> Vec<String> {
         names.insert("vault", "services.vault");
     }
     names.insert("bootstrap", "the bootstrap container");
+    if config.ingress_enabled() {
+        names.insert("ingress", "the ingress container");
+    }
     let mut nodes: Vec<(&str, &str)> = Vec::new();
     if consul_enabled {
         nodes.extend(
@@ -815,9 +879,39 @@ fn check(config: &Config, config_dir: &Path) -> Vec<String> {
         }
     }
 
+    // ---- ingress: a traefik reading the services of the nomad servers of this cluster
+    let ingress_port = config
+        .ingress
+        .as_ref()
+        .map(|i| HostPort::Port(i.port.unwrap_or(DEFAULT_INGRESS_PORT)));
+    if let Some(ingress) = config.ingress.as_ref().filter(|i| i.enabled) {
+        if !nomad_enabled || nomad_servers.is_empty() {
+            errors.push(
+                "ingress: needs nomad servers in this cluster (it reads the services from their api)"
+                    .to_string(),
+            );
+        }
+        if ingress.port == Some(0) {
+            errors.push("ingress.port: must be a port number".to_string());
+        }
+        if let Some(domain) = &ingress.domain {
+            let valid =
+                !domain.is_empty() && domain.split('.').all(|label| is_valid_name(label, false));
+            if !valid {
+                errors.push(format!(
+                    "ingress.domain: '{}' is not a domain name, e.g. 'localhost'",
+                    domain
+                ));
+            }
+        }
+    }
+
     // ---- ports published on the host
     let mut host_ports: HashMap<u16, &str> = HashMap::new();
     let mut published = Vec::new();
+    if config.ingress_enabled() {
+        published.push(("ingress.port", ingress_port.as_ref(), None));
+    }
     if nomad_enabled && !nomad_servers.is_empty() {
         let port = nomad
             .and_then(|n| n.config.as_ref())
@@ -1133,6 +1227,36 @@ services:
 
         let bad = yaml.replace("'myapp:dev'", "'my app'");
         assert!(errors(&bad).iter().any(|e| e.contains("not an image name")));
+    }
+
+    #[test]
+    fn ingress_is_computed_and_checked() {
+        let yaml = format!("{}ingress:\n  enabled: true\n  port: 4646\n", MINIMUM);
+        assert!(errors(&yaml)
+            .iter()
+            .any(|e| e.contains("already published")));
+
+        let yaml = format!("{}ingress:\n  enabled: true\n", MINIMUM);
+        let config = validate(&yaml, Path::new("examples")).unwrap();
+        assert_eq!(
+            config.ingress_url("whoami").as_deref(),
+            Some("http://whoami.localhost:8080")
+        );
+        let last = config.nodes().pop().unwrap();
+        assert_eq!(
+            (last.container.as_str(), last.ip.as_deref()),
+            ("localhost-ingress", Some("10.1.0.40"))
+        );
+
+        let bad = format!(
+            "{}ingress:\n  enabled: true\n  domain: 'my domain'\n",
+            MINIMUM
+        );
+        assert!(errors(&bad).iter().any(|e| e.contains("not a domain name")));
+        let without_servers = yaml.replace("    servers:\n      - name: 'server'\n", "");
+        assert!(errors(&without_servers)
+            .iter()
+            .any(|e| e.contains("needs nomad servers")));
     }
 
     #[test]

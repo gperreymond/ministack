@@ -26,3 +26,7 @@ services:
       - name: 'server'
     clients:
       - name: 'worker'
+
+# traefik in front of the services of the jobs: http://<service>.localhost:8080
+ingress:
+  enabled: true
