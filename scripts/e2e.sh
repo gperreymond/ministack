@@ -100,9 +100,10 @@ run_job() {
     || { cat "/tmp/e2e-${PROJECT}-${name}.log"; fail "nomad job run ${name}"; }
 }
 
+# whoami_answers [service]: the whoami job, or its copy with a local image
 whoami_answers() {
   local address
-  address=$(docker exec "$SERVER" nomad service info -t '{{ range . }}{{ .Address }}:{{ .Port }}{{ end }}' whoami)
+  address=$(docker exec "$SERVER" nomad service info -t '{{ range . }}{{ .Address }}:{{ .Port }}{{ end }}' "${1:-whoami}")
   docker exec "$SERVER" curl -sf "http://${address}/" | grep -q '^Hostname'
 }
 
@@ -122,6 +123,7 @@ vault_demo_reads() {
 check_jobs() {
   log "checking the demo jobs..."
   retry 120 whoami_answers || fail "whoami does not answer"
+  retry 120 whoami_answers whoami-local || fail "whoami-local (image copied from the host) does not answer"
   if [ -n "${CONSUL_HTTP_ADDR:-}" ]; then
     retry 180 countdash_mesh_answers || fail "countdash: the api is not reachable through the service mesh"
   fi
@@ -148,6 +150,16 @@ start
 check_apis
 
 run_job "${JOBS_DIR}/nomad/minimum/jobs/whoami.hcl"
+
+# an image that only exists on the host, copied into the clients
+log "copying a local image into the clients..."
+docker pull -q traefik/whoami:v1.10.3 > /dev/null
+docker tag traefik/whoami:v1.10.3 ministack-local/whoami:e2e
+"$BIN" --config "$CONFIG" --load-image ministack-local/whoami:e2e
+LOCAL_JOB="$(mktemp -d)/whoami-local.hcl"
+sed -e 's#traefik/whoami:v1.10.3#ministack-local/whoami:e2e#' -e 's/"whoami"/"whoami-local"/g' \
+  "${JOBS_DIR}/nomad/minimum/jobs/whoami.hcl" > "$LOCAL_JOB"
+run_job "$LOCAL_JOB"
 if [ -n "${CONSUL_HTTP_ADDR:-}" ]; then
   run_job "${JOBS_DIR}/consul/minimum/jobs/countdash.hcl"
 fi

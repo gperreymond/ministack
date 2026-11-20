@@ -9,6 +9,7 @@ use std::process::Command as ShellCommand;
 use tera::{Context, Tera};
 
 mod config;
+mod images;
 mod status;
 
 // Embed the "templates" directory into the binary
@@ -67,9 +68,16 @@ fn main() {
                 .action(clap::ArgAction::SetTrue)
                 .help("Show the nodes of the cluster, their state and the addresses (exit code 1 when a node is not ready)"),
         )
+        .arg(
+            Arg::new("load-image")
+                .long("load-image")
+                .value_name("IMAGE")
+                .num_args(1..)
+                .help("Copy images of the host into every nomad client of the running cluster, e.g. --load-image myapp:dev"),
+        )
         .group(
             ArgGroup::new("action")
-                .args(["start", "restart", "stop", "purge", "env", "status"])
+                .args(["start", "restart", "stop", "purge", "env", "status", "load-image"])
                 .multiple(false),
         )
         .get_matches();
@@ -104,8 +112,12 @@ fn main() {
         Value::String(ministack_dir.to_string_lossy().to_string()),
     );
     let generated_files = render_all_templates(&config_data, &output_dir);
-    // the read only commands keep their output clean
-    if !(matches.get_flag("env") || matches.get_flag("status")) {
+    let load_images: Vec<String> = matches
+        .get_many::<String>("load-image")
+        .map(|images| images.cloned().collect())
+        .unwrap_or_default();
+    // the commands on a running cluster keep their output clean
+    if !(matches.get_flag("env") || matches.get_flag("status") || !load_images.is_empty()) {
         for file in generated_files {
             eprintln!("Rendered: '{}'", file);
         }
@@ -122,7 +134,8 @@ fn main() {
         || matches.get_flag("stop")
         || matches.get_flag("purge")
         || matches.get_flag("env")
-        || matches.get_flag("status"));
+        || matches.get_flag("status")
+        || !load_images.is_empty());
     if starting || only_rendering {
         if !create_tls_certificates(&config_data, &ministack_dir) {
             std::process::exit(1);
@@ -143,6 +156,18 @@ fn main() {
             std::process::exit(1);
         }
         if !status::print_status(&config, config_path, &output_dir) {
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    // Copy images of the host into the clients of the running cluster
+    if !load_images.is_empty() {
+        if !is_docker_available() {
+            eprintln!("Error: 'docker' is not installed or not accessible in the PATH.");
+            std::process::exit(1);
+        }
+        if !images::copy_images(&load_images, &config.client_containers()) {
             std::process::exit(1);
         }
         return;
@@ -171,6 +196,10 @@ fn main() {
             std::process::exit(1);
         }
         if args[0] == "up" {
+            // the images of the configuration, again after each start (a recreated client is empty)
+            if !images::copy_images(&config.copy_images(), &config.client_containers()) {
+                std::process::exit(1);
+            }
             println!();
             println!("[INFO] cluster is ready, to use it from your shell:");
             println!("  eval \"$(ministack --config {} --env)\"", config_path);

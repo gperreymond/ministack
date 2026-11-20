@@ -204,6 +204,32 @@ services:
 
 ---
 
+## Local images
+
+Jobs can use images built on your host, without a registry: ministack copies them into the docker engine of every nomad client.
+
+```sh
+$ docker build -t myapp:dev .
+# copy into the clients of the running cluster
+$ ministack --config [path_to_your_config_yaml_file] --load-image myapp:dev
+$ nomad job run myapp.hcl   # image = "myapp:dev"
+```
+
+Images listed in the configuration are copied after each `--start` and `--restart`:
+
+```yaml
+services:
+  nomad:
+    config:
+      client:
+        copy_images:
+          - 'myapp:dev'
+```
+
+The image must have the architecture of the cluster (the one of your docker). Give it a tag other than `latest`: with `latest` (or no tag), nomad always tries to pull the image from a registry.
+
+---
+
 ## Consul
 
 Enable consul, and every nomad node (server and client) gets a consul client agent.  
