@@ -26,6 +26,10 @@ include:
   {%- if needs_bootstrap %}
   - 'bootstrap.yaml'
   {%- endif %}
+  # INGRESS
+  {%- if ingress_enabled %}
+  - 'ingress.yaml'
+  {%- endif %}
   # PLUGINS
   {%- if plugins %}
   {%- for item in plugins %}

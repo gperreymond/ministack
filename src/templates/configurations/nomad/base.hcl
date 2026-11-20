@@ -44,6 +44,10 @@ consul {
   # token of the nomad agent itself, local stack shortcut: the management token
   token        = "{{ consul_token }}"
   {%- endif %}
+  {%- if ingress_enabled %}
+  # the nomad agents are registered in consul, not routed by the ingress
+  tags         = ["traefik.enable=false"]
+  {%- endif %}
 }
 {%- endif %}
 

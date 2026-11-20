@@ -18,6 +18,8 @@ REPO_DIR=$(cd "$(dirname "$0")/.." && pwd)
 JOBS_DIR="${REPO_DIR}/examples"
 PROJECT=$(sed -n "s/^name: *['\"]\{0,1\}\([^'\"]*\)['\"]\{0,1\} *$/\1/p" "$CONFIG" | head -n 1)
 RAFT=$(grep -q "mode: *'raft'" "$CONFIG" && echo true || echo false)
+# the ingress of the examples listens on the default port
+INGRESS=$(grep -A1 "^ingress:" "$CONFIG" | grep -q "enabled: *true" && echo true || echo false)
 
 log() { echo "[E2E] $*"; }
 fail() { echo "[E2E][FAIL] $*"; exit 1; }
@@ -116,6 +118,11 @@ countdash_mesh_answers() {
     -sf -m 5 http://127.0.0.1:8080/ | grep -q '"count"'
 }
 
+# a service through the ingress: http://<service>.localhost:8080
+ingress_answers() {
+  curl -sf -m 5 -H "Host: $1.localhost" http://127.0.0.1:8080/ | grep -q "$2"
+}
+
 vault_demo_reads() {
   docker exec "$SERVER" nomad alloc logs -job vault-demo | grep -q "password from vault: $1"
 }
@@ -126,6 +133,13 @@ check_jobs() {
   retry 120 whoami_answers whoami-local || fail "whoami-local (image copied from the host) does not answer"
   if [ -n "${CONSUL_HTTP_ADDR:-}" ]; then
     retry 180 countdash_mesh_answers || fail "countdash: the api is not reachable through the service mesh"
+  fi
+  if [ "$INGRESS" == "true" ]; then
+    retry 60 ingress_answers whoami '^Hostname' || fail "whoami does not answer through the ingress"
+    if [ -n "${CONSUL_HTTP_ADDR:-}" ]; then
+      # registered in consul
+      retry 60 ingress_answers count-dashboard 'html' || fail "count-dashboard does not answer through the ingress"
+    fi
   fi
   if [ -n "${VAULT_ADDR:-}" ] && [ "$1" == "vault" ]; then
     retry 120 vault_demo_reads e2e || fail "vault-demo does not read its secret"

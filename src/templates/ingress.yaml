@@ -1,0 +1,68 @@
+{%- if ingress_enabled %}
+services:
+  # traefik in front of the services of the jobs: http://<service>.{{ ingress_domain }}:{{ ingress_port }}
+  # every service is exposed by default, a service opts out with the tag 'traefik.enable=false'
+  {{ datacenter }}-ingress:
+    image: 'traefik:{{ ingress_version }}'
+    container_name: '{{ datacenter }}-ingress'
+    hostname: '{{ datacenter }}-ingress'
+    command:
+      - '--log.level=INFO'
+      - '--ping=true'
+      - '--entryPoints.web.address=:80'
+      # services registered in nomad (service provider "nomad")
+      - '--providers.nomad=true'
+      - '--providers.nomad.exposedByDefault=true'
+      - '--providers.nomad.refreshInterval=5s'
+      - '--providers.nomad.defaultRule=Host(`{% raw %}{{ normalize .Name }}{% endraw %}.{{ ingress_domain }}`)'
+      - '--providers.nomad.endpoint.address={{ nomad_scheme }}://{{ nomad_server_ip }}:4646'
+      {%- if nomad_acl %}
+      - '--providers.nomad.endpoint.token={{ nomad_token }}'
+      {%- endif %}
+      {%- if nomad_tls %}
+      - '--providers.nomad.endpoint.tls.ca=/ministack/tls/ca.pem'
+      {%- endif %}
+      {%- if services.consul.enabled and services.consul.servers %}
+      # services registered in consul (service provider "consul")
+      - '--providers.consulCatalog=true'
+      - '--providers.consulCatalog.exposedByDefault=true'
+      - '--providers.consulCatalog.refreshInterval=5s'
+      # consul itself and the connect sidecars are not http services: a rule that never matches
+      - '--providers.consulCatalog.defaultRule={% raw %}{{ if or (eq .Name "consul") (hasSuffix "-sidecar-proxy" .Name) }}Host(`{{ normalize .Name }}.ministack.invalid`){{ else }}Host(`{{ normalize .Name }}{% endraw %}.{{ ingress_domain }}`){% raw %}{{ end }}{% endraw %}'
+      - '--providers.consulCatalog.endpoint.address={{ consul_server_ip }}:{{ consul_port }}'
+      - '--providers.consulCatalog.endpoint.scheme={{ consul_scheme }}'
+      {%- if consul_acl %}
+      - '--providers.consulCatalog.endpoint.token={{ consul_token }}'
+      {%- endif %}
+      {%- if consul_tls %}
+      - '--providers.consulCatalog.endpoint.tls.ca=/ministack/tls/ca.pem'
+      {%- endif %}
+      {%- endif %}
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    ports:
+      - '127.0.0.1:{{ ingress_port }}:80'
+    labels:
+      - 'ministack/ingress=traefik'
+    {%- if nomad_tls or consul_tls %}
+    volumes:
+      - './tls:/ministack/tls:ro'
+    {%- endif %}
+    depends_on:
+      {%- if needs_bootstrap %}
+      # the acl tokens exist once the bootstrap is done
+      {{ datacenter }}-bootstrap:
+        condition: 'service_healthy'
+      {%- else %}
+      {%- for item in services.nomad.servers %}
+      {{ datacenter }}-{{ item.name }}:
+        condition: 'service_healthy'
+      {%- endfor %}
+      {%- endif %}
+    networks:
+      ministack:
+        ipv4_address: '{{ ingress_ip }}'
+{%- endif %}
