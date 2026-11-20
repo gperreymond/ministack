@@ -80,7 +80,7 @@ From the simplest to the closest to production:
 | [`consul/minimum`](examples/consul/minimum/cluster.yaml) | ✓ | ✓ | | | | consul service mesh (connect + envoy), with the [`countdash`](examples/consul/minimum/jobs/countdash.hcl) job |
 | [`vault/minimum`](examples/vault/minimum/cluster.yaml) | ✓ | | dev | | | vault secrets in jobs through workload identities, with the [`vault-demo`](examples/vault/minimum/jobs/vault-demo.hcl) job |
 | [`vault/raft`](examples/vault/raft/cluster.yaml) | ✓ | | raft | | | persistent vault, initialized and unsealed automatically |
-| [`hashistack`](examples/hashistack/cluster.yaml) | ✓ | ✓ | dev | | | the 3 tools together, without security, jobs exposed by the ingress |
+| [`hashistack`](examples/hashistack/cluster.yaml) | ✓ | ✓ | dev | | | the 3 tools together, without security, jobs exposed by the ingress (http and tcp) |
 | [`acl`](examples/acl/cluster.yaml) | ✓ | ✓ | raft | ✓ | | nomad and consul ACLs, with known management tokens |
 | [`tls`](examples/tls/cluster.yaml) | ✓ | ✓ | dev | | ✓ | everything over TLS, certificates created by ministack |
 | [`secure`](examples/secure/cluster.yaml) | ✓ | ✓ | raft | ✓ | ✓ | **closest to production**: ACL + TLS + persistent vault, jobs exposed by the ingress |
@@ -97,6 +97,8 @@ $ nomad job run examples/consul/minimum/jobs/countdash.hcl
 $ vault kv put secret/default/vault-demo password=ministack
 $ nomad job run examples/vault/minimum/jobs/vault-demo.hcl
 $ nomad alloc logs -job vault-demo
+# a tcp service behind the tcp ingress (examples/hashistack)
+$ nomad job run examples/nomad/minimum/jobs/redis.hcl
 ```
 
 What you get on your host (with the default ports):
@@ -107,6 +109,7 @@ What you get on your host (with the default ports):
 | Consul api / ui | `http(s)://127.0.0.1:8500` | `CONSUL_HTTP_TOKEN` with ACL: `22222222-2222-2222-2222-222222222222` |
 | Vault api / ui | `http(s)://127.0.0.1:8200` | `VAULT_TOKEN`: `root` |
 | Services of the jobs (ingress) | `http://<service>.localhost:8080` | |
+| TCP services of the jobs (ingress) | `127.0.0.1:<port of ingress.tcp>` | |
 
 With TLS, `--env` also exports `NOMAD_CACERT`, `CONSUL_CACERT` and `VAULT_CACERT` (the ministack ca in `.ministack/tls/ca.pem`).
 
@@ -214,6 +217,8 @@ ingress:
   enabled: true
   # port: 8080          # published on 127.0.0.1
   # domain: 'localhost' # http://<service>.<domain>:<port>
+  # tcp:                 # one port on 127.0.0.1 per tcp service, see below
+  #   redis: 6379
 ```
 
 ```sh
@@ -223,8 +228,39 @@ $ curl http://whoami.localhost:8080
 
 * Every service is exposed by default, from nomad (`provider = "nomad"`) and from consul (`provider = "consul"`). A service opts out with the tag `traefik.enable=false`, the other `traefik.*` tags customize its route (rule, middlewares...).
 * Browsers and curl resolve `*.localhost` to `127.0.0.1`. Elsewhere, add a `Host` header: `curl -H 'Host: whoami.localhost' http://127.0.0.1:8080`.
-* HTTP only for now. A service only reachable through the consul service mesh (no port of its own, e.g. `count-api`) is not reachable: expose the service in front of it (e.g. `count-dashboard`).
-* `--status` prints the address of the ingress.
+* A service only reachable through the consul service mesh (no port of its own, e.g. `count-api`) is not reachable: expose the service in front of it (e.g. `count-dashboard`).
+* `--status` prints the addresses of the ingress.
+
+### TCP services
+
+A database, a broker... has no host name to route on: each tcp service gets its own port. `ingress.tcp` creates a traefik entrypoint per name, published on `127.0.0.1:<port>`, and the service of the job takes it with two tags (traefik never exposes tcp without tags):
+
+```yaml
+ingress:
+  enabled: true
+  tcp:
+    redis: 6379
+```
+
+```hcl
+service {
+  name = "redis"
+  port = "redis"
+  tags = [
+    "traefik.tcp.routers.redis.entrypoints=redis",
+    "traefik.tcp.routers.redis.rule=HostSNI(`*`)",
+  ]
+}
+```
+
+```sh
+$ nomad job run examples/nomad/minimum/jobs/redis.hcl
+$ redis-cli -p 6379 ping
+```
+
+* The `entrypoints` tag is required: a tcp router without it would listen on the http entrypoint.
+* ``HostSNI(`*`)`` takes every connection, it is the rule for plain tcp (with tls, a rule on the server name lets several services share an entrypoint).
+* A service with a tcp router no longer gets the default http router.
 
 ---
 

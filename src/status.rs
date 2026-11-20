@@ -156,6 +156,15 @@ pub fn print_status(config: &Config, config_path: &str, output_dir: &Path) -> bo
         if let Some(url) = config.ingress_url("<service>") {
             outln!(out, "{:7} {}", "ingress", url);
         }
+        for (name, port, _) in config.ingress_tcp() {
+            outln!(
+                out,
+                "{:7} tcp://127.0.0.1:{} (entrypoint '{}')",
+                "ingress",
+                port,
+                name
+            );
+        }
         out.push('\n');
         outln!(out, "eval \"$(ministack --config {} --env)\"", config_path);
     } else if !started {
