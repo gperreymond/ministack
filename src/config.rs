@@ -198,6 +198,8 @@ pub struct NomadServerConfig {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NomadClientConfig {
+    // images of the host copied into every client after each start
+    pub copy_images: Option<Vec<String>>,
     pub retry_join: Option<Vec<String>>,
     pub labels: Option<Vec<String>>,
     pub local_volumes: Option<Vec<String>>,
@@ -360,6 +362,26 @@ impl Config {
             nodes.push(Node::new(container("bootstrap"), "bootstrap", None));
         }
         nodes
+    }
+
+    // Images of the host to copy into the clients after each start
+    pub fn copy_images(&self) -> Vec<String> {
+        self.services
+            .as_ref()
+            .and_then(|s| s.nomad.as_ref())
+            .and_then(|n| n.config.as_ref())
+            .and_then(|c| c.client.as_ref())
+            .and_then(|c| c.copy_images.clone())
+            .unwrap_or_default()
+    }
+
+    // Containers of the nomad clients
+    pub fn client_containers(&self) -> Vec<String> {
+        self.nodes()
+            .into_iter()
+            .filter(|node| node.role == "nomad client")
+            .map(|node| node.container)
+            .collect()
     }
 
     // Add an 'ip' to every node of the raw configuration, for the loops of the templates
@@ -736,6 +758,23 @@ fn check(config: &Config, config_dir: &Path) -> Vec<String> {
                 MAX_NOMAD_SERVERS
             ));
         }
+        let copy_images = config
+            .and_then(|c| c.client.as_ref())
+            .and_then(|c| c.copy_images.as_ref());
+        for image in copy_images.into_iter().flatten() {
+            if image.trim().is_empty() || image.contains(char::is_whitespace) {
+                errors.push(format!(
+                    "services.nomad.config.client.copy_images: '{}' is not an image name",
+                    image
+                ));
+            }
+        }
+        if copy_images.map(|i| !i.is_empty()).unwrap_or(false) && nomad_clients.is_empty() {
+            errors.push(
+                "services.nomad.config.client.copy_images: there are no clients to copy the images to"
+                    .to_string(),
+            );
+        }
         check_acl(
             config.and_then(|c| c.acl.as_ref()),
             "services.nomad.config.acl",
@@ -1077,6 +1116,23 @@ services:
                 ("localhost-bootstrap", "bootstrap", None),
             ]
         );
+    }
+
+    #[test]
+    fn copy_images_are_read_and_checked() {
+        let yaml = MINIMUM.replace(
+            "    enabled: true\n",
+            "    enabled: true\n    config:\n      client:\n        copy_images:\n          - 'myapp:dev'\n",
+        );
+        let config = validate(&yaml, Path::new("examples")).unwrap();
+        assert_eq!(config.copy_images(), vec!["myapp:dev".to_string()]);
+        assert_eq!(
+            config.client_containers(),
+            vec!["localhost-worker".to_string()]
+        );
+
+        let bad = yaml.replace("'myapp:dev'", "'my app'");
+        assert!(errors(&bad).iter().any(|e| e.contains("not an image name")));
     }
 
     #[test]
